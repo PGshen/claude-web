@@ -128,7 +128,7 @@
 
 - logo 是**用户自己给的那张**（黑色超椭圆底 + 白色「r / b」+ 橙点 `#ff5a1f`；第三轮用户说「不要擅自换」——第二轮我自己画的 c/w 已撤掉）：
   按原图量出的尺寸重画成矢量（超椭圆 n≈4.5）。`web/public/icon.svg` 是唯一源，`node scripts/icons.cjs`
-  （sharp）出 PWA / 桌面 / 官网的图；侧栏内联画同样的形状（`ui/AppLogo.tsx`）。
+  （sharp）出 PWA / 桌面的图；侧栏内联画同样的形状（`ui/AppLogo.tsx`）。
 - 新对话页的动态背景（第二段录屏）：`features/home/AsciiField.tsx`（canvas，15 fps，看不见时不画，减少动效时静止，设置 `ui.welcomeBackdrop`），
   数学在 `ascii-noise.ts`。（2026-10-24 这个「字场」删了，设置换成 外观 → 背景动画，见第五轮末尾。）
 - 新对话页的输入框：框里一行，框下一行是 代码 / 聊天（官方标题栏的 chat / code：这里就是「只聊天」）、电脑、文件夹、分支、权限，右边模型

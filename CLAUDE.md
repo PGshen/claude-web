@@ -33,7 +33,7 @@ npm run dev          # 开发：server tsx watch + vite :5173（代理 /ws 到 3
 - 子进程 spawn 显式写 `windowsHide: true`；新加带 sessionId 的请求要进联邦路由表（`federation/rewrite.ts`）。
 - 停靠面板 / 右侧面板 / 分区页**不卸载**，只 `hidden`（终端 pty、xterm 缓冲、表单状态）。
 - 改文件用 Edit / Write，或把脚本写成文件再跑：bash 里 `node -e "…"` 的反引号会被当命令替换，heredoc 会吃反斜杠。仓库是 LF（`.gitattributes`）。
-- 测试：`npm run typecheck`、`npm test`、`npm run build:all`、`npm run e2e`（自带临时 HOME，不花 token）、`node scripts/ui-smoke.cjs`（Electron，任何 console 错误都算失败）。真机验证用临时 `CLAUDE_WEB_DIR` / HOME，别碰用户自己的 `~/.claude-web`。官网 `site/` 有自己的依赖：`npm install` 后跑一次 `npm run site:install`（根的 `typecheck` / `test` 也查 `site/`）。
+- 测试：`npm run typecheck`、`npm test`、`npm run build:all`、`npm run e2e`（自带临时 HOME，不花 token）、`node scripts/ui-smoke.cjs`（Electron，任何 console 错误都算失败）。真机验证用临时 `CLAUDE_WEB_DIR` / HOME，别碰用户自己的 `~/.claude-web`。
 - 本机开发 shell 继承了 `CLAUDE_CODE_ENTRYPOINT=sdk-cli`、已装桌面版的 `CLAUDE_WEB_DIST` 、`ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL`、`CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION`、`CLAUDE_WEB_THINKING_DISPLAY`、`CLAUDE_WEB_CONTEXT_WINDOWS` / `CLAUDE_WEB_MODEL_CAPS`、`ELECTRON_RUN_AS_NODE`（会让 `npx electron` 退回 Node，`ui-smoke` 整个跑不起来），测指纹 / 自己起 server / 跑 `npm test`（`session-runner.test.ts` 会挂三条）/ `ui-smoke` 时 `env -u` 掉。还有 `CLAUDE_WEB_ENGINES`、`CLAUDE_WEB_SIDECARS`、`ANTHROPIC_BASE_URL` 等，最省事是全去掉：`env $(env | cut -d= -f1 | grep -E '^(CLAUDE|ANTHROPIC|ELECTRON_RUN_AS_NODE)' | sed 's/^/-u /') npm test`。
 - 提交身份固定 `PGshen`（就用本仓库 `.git/config` 里的，别用 `-c` 覆盖）；应用发版的步骤在 `macos-ci` 里。
 
@@ -78,7 +78,7 @@ npm run dev          # 开发：server tsx watch + vite :5173（代理 /ws 到 3
 | [macos-ci](docs/notes/macos-ci.md) | macOS / CI（2026-09-27） | mac 打包、发版收尾、CI、没有 Mac 时怎么验 |
 | [robustness](docs/notes/robustness.md) | 子进程窗口 / 前端健壮性（2026-09-28） | 停止、终端是 shell、spawn guard、错误边界、zustand 选择器、ui-smoke 用法 |
 | [ui-refresh](docs/notes/ui-refresh.md) | 界面换新（2026-10-10） | 样式文件顺序、令牌、外壳、字体、图标、标题栏、动效、手机交互、质感：发丝边 / 弹簧 / 滚动渐隐 / 暗色字重（10-16） |
-| [i18n](docs/notes/i18n.md) | 界面语言：中文和英文（2026-10-15，用户要求） | tr() 约定、语言怎么定、四份英文目录、加一句字的流程、i18n-smoke、README 截图脚本、坑 |
+| [i18n](docs/notes/i18n.md) | 界面语言：中文和英文（2026-10-15，用户要求） | tr() 约定、语言怎么定、三份英文目录、加一句字的流程、i18n-smoke、README 截图脚本、坑 |
 | [claude-accounts](docs/notes/claude-accounts.md) | 其它 Claude 账号（2026-10-15，用户要求） | claude-account 档案、setup-token 令牌、runner 走账号那条路、添加对话框、真机验证 |
 | [custom-css](docs/notes/custom-css.md) | 自定义样式 custom.css 与 DOM 钩子（2026-10-15，GitHub issue #2） | custom.css 加载 / 热更新、钩子约定、计划进度条 |
 | [chat-input](docs/notes/chat-input.md) | 对话与输入：旁聊 / 下一句提示 / 查看模式 / @文件 / 快捷键（2026-10-16） | side_question、CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION、ui.viewMode、fs.findFiles、官方快捷键对照、桌面版无麦克风 |
@@ -95,7 +95,6 @@ npm run dev          # 开发：server tsx watch + vite :5173（代理 /ws 到 3
 | [background](docs/notes/background.md) | 后台：在跑的子代理和工作流（2026-10-12） | 后台：子代理 / 工作流的数据来源、服务端、前端、调试 |
 | [cafe](docs/notes/cafe.md) | 后台 · 网吧（2026-10-13） | 等距像素网吧、角色格式、捏角色的 skill 和工具、模拟与渲染 |
 | [ascii-themes](docs/notes/ascii-themes.md) | 字符画主题与过程动画（2026-10-22，用户要求） | 主题包、data-ascii、16 个过程 / 帧表、ProcessGlyph、Worker 背景的沙箱和看门狗、安静区、十套内置、theme-check 脚本、ascii-theme skill 与试跑、设置页画廊、截图办法 |
-| [site](docs/notes/site.md) | 官网（2026-10-22） | site/ 的 Astro 站、文案与覆盖测试、语言跳转、按系统的下载按钮、版本数据、首次加载预算、Pages 发布 |
 | [node-graph](docs/notes/node-graph.md) | 节点图（spec 2026-10-24 D） | ui/node-graph 共用组件；nodegraph 格式、marks / 状态标签；后台指挥台、编排执行图、对话代码块与 Mermaid 切换；动效与 150 张上限；ui.nodegraphHint |
 | [security-audit](docs/notes/security-audit.md) | 安全审计（2026-10-31，用户要求） | SEC-01～20 清单与状态表：DNS rebinding、局域网明文、联邦、密钥进命令行；手机壳 / 转发、插件沙箱 / 插件市场几条的代码已删 |
 | [screen-recording](docs/notes/screen-recording.md) | 录屏（阶段 E3，2026-10-25） | + 菜单录屏、自己的选择框、主进程只放行选中的源、录制格式与上限、抽关键帧、录下 Claude 的操作 |

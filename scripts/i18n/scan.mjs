@@ -9,7 +9,6 @@ export const AREAS = [
   { dir: 'server/src', catalog: 'server/src/i18n/en.ts', export: 'EN_SERVER' },
   { dir: 'web/src', catalog: 'web/src/i18n/en.ts', export: 'EN_WEB' },
   { dir: 'desktop/src', catalog: 'desktop/src/en.ts', export: 'EN_DESKTOP' },
-  { dir: 'site/src', catalog: 'site/src/i18n/en.ts', export: 'EN_SITE' },
 ];
 
 const SKIP = /(\.test\.|\.generated\.|[\\/]node_modules[\\/]|[\\/]dist[\\/])/;

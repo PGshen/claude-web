@@ -225,7 +225,7 @@ function seedDemo(home, lang, opts = {}) {
 }
 
 // ---- the fake Anthropic upstream -------------------------------------------------------------------------------
-// The recordings' scripts (scripts/record-themes.cjs): the same turn, paced the same way, every time. A step is one
+// The screenshots' scripts: the same turn, paced the same way, every time. A step is one
 // model response; which step comes next = how many tool results follow the user's words. Text and tool arguments
 // stream in chunks so the app shows each step running (with the theme's process animation) for a moment.
 const sse = (type, o) => `event: ${type}\ndata: ${JSON.stringify({ type, ...o })}\n\n`;

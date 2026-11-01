@@ -21,15 +21,11 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            site/package-lock.json
+          cache-dependency-path: package-lock.json
       - run: npm ci
-      - run: npm ci --prefix site
       - run: npm run typecheck
       - run: npm test
       - run: npm run build:all
-      - run: npm run build:site
         env:
           SITE_MEDIA: off # the recordings are the deploy's business; a PR check does not download them
       # end-to-end over the real WebSocket with fake upstreams (no model calls)

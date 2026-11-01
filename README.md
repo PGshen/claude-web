@@ -83,18 +83,6 @@ Both read and write the same data (`~/.claude` and `~/.claude-web`), so you can 
 
 ## Install
 
-### Desktop app (download an installer)
-
-Download from [Releases](https://github.com/PGshen/claude-web/releases/latest):
-
-| System | File |
-| --- | --- |
-| Windows 10 / 11 (x64) | `ClaudeWeb-<version>-win-x64.exe` (installer) or `ClaudeWeb-<version>-portable.exe` (no install needed) |
-| macOS, Apple Silicon (M1 and later) | `ClaudeWeb-<version>-mac-arm64.dmg` |
-| macOS, Intel | `ClaudeWeb-<version>-mac-x64.dmg` |
-
-The `.zip`, `.yml` and `.blockmap` files are used by auto-update; you don't need to download them. For what to expect the first time you open it, see "About the installer warnings" below. For what changed in each version, see the [changelog](CHANGELOG.md).
-
 ### Web version (from source)
 
 You need [Node.js 22.13+](https://nodejs.org/) (it uses the built-in `node:sqlite`) and Git:
@@ -465,9 +453,8 @@ For more detail on the architecture, protocols and the pitfalls hit along the wa
 
 ```bash
 npm install
-npm run site:install     # install the site's separate dependencies (also needed for typecheck and tests)
 npm run dev              # dev mode: server hot reload + Vite (http://localhost:5173)
-npm run typecheck        # type-check server + web + desktop + site
+npm run typecheck        # type-check server + web + desktop
 npm test                 # unit tests
 npm run build:all        # build server / web / desktop
 npm run e2e              # end-to-end checks (temp folder, mock agent, costs no tokens)

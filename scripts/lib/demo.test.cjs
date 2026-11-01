@@ -1,4 +1,4 @@
-// The fake upstream's recording scripts (scripts/record-themes.cjs): run with `node --test scripts/lib/demo.test.cjs`.
+// The fake upstream's scripts: run with `node --test scripts/lib/demo.test.cjs`.
 const test = require('node:test');
 const assert = require('node:assert');
 const http = require('node:http');

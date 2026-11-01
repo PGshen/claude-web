@@ -105,7 +105,6 @@ describe('no Chinese text left outside tr()', () => {
     'server/src/themes/check.ts': 'what is wrong with a theme draft, for the theme skill',
     'server/src/themes/skill-text.ts': 'the ascii-theme skill and the built-in themes\' source, generated: a file for the model',
     'server/src/themes/tools.ts': 'the theme tools answer the model (a heading of the theme source they show)',
-    'site/src/i18n/languages.ts': 'languages named in themselves (the site\'s language switch)',
   };
   const CATALOGS = AREAS.map((a) => a.catalog);
 

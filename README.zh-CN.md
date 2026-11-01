@@ -83,18 +83,6 @@
 
 ## 安装
 
-### 桌面版（下载安装包）
-
-到 [Releases](https://github.com/PGshen/claude-web/releases/latest) 下载：
-
-| 系统 | 文件 |
-| --- | --- |
-| Windows 10 / 11（x64） | `ClaudeWeb-<版本>-win-x64.exe`（安装版）或 `ClaudeWeb-<版本>-portable.exe`（免安装） |
-| macOS，Apple Silicon（M1 及以后） | `ClaudeWeb-<版本>-mac-arm64.dmg` |
-| macOS，Intel | `ClaudeWeb-<版本>-mac-x64.dmg` |
-
-`.zip`、`.yml`、`.blockmap` 是自动更新用的，不用下载。第一次打开的提示见下面「安装包的提示」。每个版本改了什么见 [更新日志](CHANGELOG.zh-CN.md)。
-
 ### 网页版（从源码）
 
 需要 [Node.js 22.13+](https://nodejs.org/)（用到内置的 `node:sqlite`）和 Git：
@@ -465,9 +453,8 @@ worktree 放在仓库外面的 `~/.claude-web/worktrees/<仓库名>-<hash>/`（�
 
 ```bash
 npm install
-npm run site:install     # 安装官网的独立依赖（类型检查和测试也需要）
 npm run dev              # 开发模式：server 热重载 + Vite（http://localhost:5173）
-npm run typecheck        # server + web + desktop + site 类型检查
+npm run typecheck        # server + web + desktop 类型检查
 npm test                 # 单元测试
 npm run build:all        # 构建 server / web / desktop
 npm run e2e              # 端到端检查（临时目录，mock agent，不花 token）

@@ -1,8 +1,8 @@
 // The app's mark everywhere from one drawing, web/public/icon.svg (the user's logo: a black squircle, white «r / b», an
 // orange dot — 2026-10-17):
 //   node scripts/icons.cjs
-// writes web/public/icon-192.png and icon-512.png (PWA manifest, apple-touch-icon), desktop/build/icon.png (512: the
-// installer, the window and the tray; electron-builder makes .ico / .icns from it) and site/public/icon.svg.
+// writes web/public/icon-192.png and icon-512.png (PWA manifest, apple-touch-icon), and desktop/build/icon.png (512: the
+// installer, the window and the tray; electron-builder makes .ico / .icns from it).
 // The sidebar draws the same shapes inline (web/src/ui/AppLogo.tsx) — change both together.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -22,6 +22,4 @@ const svg = fs.readFileSync(svgFile);
     await sharp(svg, { density: Math.ceil((72 * size) / 100) * 2 }).resize(size, size).png({ compressionLevel: 9 }).toFile(file);
     console.log(`wrote ${path.relative(root, file)} (${size}×${size})`);
   }
-  fs.copyFileSync(svgFile, path.join(root, 'site/public/icon.svg'));
-  console.log('wrote site/public/icon.svg');
 })().catch((e) => { console.error(e); process.exit(1); });
