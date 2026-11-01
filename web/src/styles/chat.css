@@ -278,7 +278,7 @@ div.code { border: 0; border-radius: var(--r-lg); background-color: var(--surfac
 .fd-foot { display: flex; justify-content: flex-end; }
 
 /* 跨对话工具 (spec 2026-10-16 sessions-env §1–2): a message from another conversation says which, and links back */
-.msg.user .from-head { display: flex; align-items: center; gap: 4px; margin: -2px 0 6px; font-size: var(--fs-micro); color: var(--ink-3); text-align: left; }
+.msg.user .from-head, .msg.user .view-head { display: flex; align-items: center; gap: 4px; margin: -2px 0 6px; font-size: var(--fs-micro); color: var(--ink-3); text-align: left; }
 .msg.user .from-head:hover { color: var(--accent-text); text-decoration: underline; }
 /* 任务 chip: a piece of work Claude thinks deserves its own conversation */
 .task-chip { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: var(--r-md); background: var(--surface-1); box-shadow: var(--ring-1); }

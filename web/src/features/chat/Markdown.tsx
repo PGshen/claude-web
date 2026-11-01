@@ -3,6 +3,7 @@ import ReactMarkdown, { defaultUrlTransform, type Components, type UrlTransform 
 import remarkGfm from 'remark-gfm';
 import { CodeBlock, type CodeRunContext } from './CodeBlock';
 import { useStore } from '@/store';
+import { desktop } from '@/desktop';
 import { usePaneCtx } from '@/store/paneContext';
 import { followLink, routeLink } from './link-route';
 import { arrive, rehypeStreamFade, settledCuts, type FadeState } from './stream-fade';
@@ -35,15 +36,16 @@ type LinkMouse = { button: number; ctrlKey?: boolean; metaKey?: boolean; prevent
 /**
  * A click — and a middle click, which the browser / Electron would otherwise open as a new window on the href
  * resolved against the app's own address (2026-10-24 review I2) — goes where routeLink says. A page opens in the
- * built-in browser; with Ctrl / Cmd held, in the system's. A plain click on an in-page `#anchor` is the page's own
- * (it scrolls); a middle click on one would open the app page again in a second window (stage B): it does nothing.
+ * built-in browser; with Ctrl / Cmd held, or a middle click in the web version (what one means in a browser), in the
+ * system's. A plain click on an in-page `#anchor` is the page's own (it scrolls); a middle click on one would open the
+ * app page again in a second window (stage B): it does nothing.
  */
 export function linkHandlers(href: string | undefined, cwd: string | undefined, sid: string | null) {
   const go = (e: LinkMouse, aux: boolean) => {
     const r = routeLink(href ?? '', cwd);
     if (r.to === 'anchor') { if (aux) e.preventDefault(); return; }
     e.preventDefault();
-    followLink(r, sid ?? useStore.getState().activeId, { external: !!(e.ctrlKey || e.metaKey) });
+    followLink(r, sid ?? useStore.getState().activeId, { external: !!(e.ctrlKey || e.metaKey || (aux && !desktop)) });
   };
   return { onClick: (e: LinkMouse) => go(e, false), onAuxClick: (e: LinkMouse) => { if (e.button === 1) go(e, true); } };
 }

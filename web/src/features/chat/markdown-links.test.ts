@@ -95,6 +95,19 @@ describe('<Markdown> links keep their href and route', () => {
       expect(links.openInBrowser).toHaveBeenCalledTimes(1);
     } finally { links.desktop = null; }
   });
+  it('the web version: a plain click → the built-in browser, a middle click → a new browser tab', () => {
+    const open = vi.fn();
+    vi.stubGlobal('window', { open });
+    links.openInBrowser.mockClear();
+    try {
+      const h = linkHandlers('https://e.com/a', undefined, 's1');
+      h.onClick({ button: 0, preventDefault: vi.fn() });
+      expect(links.openInBrowser).toHaveBeenCalledWith('https://e.com/a');
+      h.onAuxClick({ button: 1, preventDefault: vi.fn() });
+      expect(open).toHaveBeenCalledWith('https://e.com/a', '_blank', 'noopener,noreferrer');
+      expect(links.openInBrowser).toHaveBeenCalledTimes(1);
+    } finally { vi.unstubAllGlobals(); }
+  });
   it('an image src keeps the default transform', () => {
     const html = renderToStaticMarkup(createElement(Markdown, { text: '![i](file:///C:/x.png)' }));
     expect(html).toContain('<img');

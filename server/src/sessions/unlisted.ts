@@ -42,7 +42,8 @@ export function promptOf(line: any): string {
   if (line?.type !== 'user' || line.isMeta || line.isSidechain) return '';
   const c = line.message?.content;
   const text = typeof c === 'string' ? c : Array.isArray(c) ? c.filter((b: any) => b?.type === 'text').map((b: any) => b.text).join(' ') : '';
-  const t = text.replace(/\s+/g, ' ').trim();
+  // a message from an artifact page in the official app starts with that page's state; what was said comes after it
+  const t = text.replace(/<artifact-view-context\b[^>]*>[\s\S]*?<\/artifact-view-context>/g, '').replace(/\s+/g, ' ').trim();
   return t.startsWith('<') ? '' : t;
 }
 

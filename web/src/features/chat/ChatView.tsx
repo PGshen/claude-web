@@ -355,6 +355,7 @@ function UserRow({ it, version }: { it: UserItem; version: number }) {
       ) : (
         <div className="bubble">
           {it.from && <FromHead from={it.from} />}
+          {it.artifactView && <div className="view-head" title={it.artifactView.artifact}><Icon name="eye" size={12} /> {tr('发送时正在看 Artifact 页面')}</div>}
           {it.text}
           {images.length > 0 && <div className="img-grid">{images.map((src, i) => <img key={i} src={src} alt="" onClick={() => open && useStore.getState().openViewer(images, i)} />)}</div>}
           {it.attachments?.length ? <AttachmentChips atts={it.attachments} /> : null}

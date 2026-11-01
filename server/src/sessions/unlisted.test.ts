@@ -64,6 +64,7 @@ describe('conversations the SDK list skips (a long first prompt, no title at the
 
   it('a user line that is a tool result, a command or meta is not a prompt', () => {
     expect(promptOf({ type: 'user', message: { content: 'hi  there' } })).toBe('hi there');
+    expect(promptOf({ type: 'user', message: { content: '<artifact-view-context artifact="a">\n{}\n</artifact-view-context>\n\n开始选题' } })).toBe('开始选题');
     expect(promptOf({ type: 'user', message: { content: [{ type: 'image' }, { type: 'text', text: 'look' }] } })).toBe('look');
     expect(promptOf({ type: 'user', message: { content: [{ type: 'tool_result' }] } })).toBe('');
     expect(promptOf({ type: 'user', message: { content: '<command-name>/clear</command-name>' } })).toBe('');

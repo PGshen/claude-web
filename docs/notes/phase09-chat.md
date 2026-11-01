@@ -47,3 +47,7 @@
 - 服务端 30 秒超时、输出上限 64 KB；超时 / 超量都杀进程树（Windows `taskkill /pid <pid> /T /F`，其它 `SIGKILL`），
   结果带 `timedOut` / `truncated`，前端在代码块下面显示 stdout / stderr / 退出码 / 耗时。
 - 运行不会写进会话记录；长任务还是用终端窗格。测试在 `server/src/tools/run-code.test.ts`。
+
+## 官方桌面版的 `<artifact-view-context>`（2026-11-01，用户报告：裸展示）
+
+在官方桌面版的 Artifact 页面里发的消息，开头带这个块（页面状态 JSON + 一段写给模型的话），用户真正说的话在块后面，写进 jsonl。`decodeAttachments` 只认**消息开头**的块（引用这个标签的话还是正文），去掉后在 `UserItem.artifactView` 记 artifact id，气泡上方一行小字；只有这个块、没有话的消息不画。服务端 `cleanTitle` 同样去掉，否则侧栏标题也是这段；`unlisted.ts` 的 `promptOf` 也去掉：SDK 不把 `<` 开头的话当提示，第一句就是这个块、又没有标题行的对话原来根本列不出来。

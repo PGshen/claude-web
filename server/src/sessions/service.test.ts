@@ -105,6 +105,13 @@ describe('forkTitle', () => {
   });
 });
 
+describe('cleanTitle', () => {
+  it('leaves out the page state the official app sends with a message from an artifact page', async () => {
+    const { cleanTitle } = await import('./service.js');
+    expect(cleanTitle('<artifact-view-context artifact="a">\n{"context":{}}\nnote\n</artifact-view-context>\n\n开始选题')).toBe('开始选题');
+  });
+});
+
 describe('listTitle', () => {
   it('a hand-over briefing is never a conversation title', async () => {
     const { listTitle } = await import('./service.js');

@@ -54,6 +54,8 @@ export interface UserItem {
   attachments?: Attachment[];
   /** 跨对话工具: sent by Claude in another conversation (server sessions-mcp `<cw-from>`) */
   from?: { sessionId: string; title: string };
+  /** sent from an artifact page in the official desktop app (`<artifact-view-context>`): which artifact was open */
+  artifactView?: { artifact: string };
   /** a command the user ran themselves (`!` in the terminal, a code block's run button in the official app): `text` is its command */
   shell?: ShellRun;
   meta?: boolean;
@@ -485,6 +487,9 @@ export function sessionRefMarker(id: string, title: string): string {
 // a whole message from another conversation (server sessions-mcp/format.ts `fromMarker`)
 const FROM_RE = /^<cw-from ([^>]*)>\n([\s\S]*)\n<\/cw-from>$/;
 
+// what the official desktop app puts before a message sent while an artifact page is open: that page's state, for the model
+const ARTIFACT_VIEW_RE = /^\s*(?:<artifact-view-context\b([^>]*)>[\s\S]*?<\/artifact-view-context>\s*)+/;
+
 // a whole message that is a command the user ran: official 2.1.309 writes all three tags in one line
 const SHELL_RE = /^(?:<bash-input>([\s\S]*?)<\/bash-input>)?\s*(?:<bash-stdout>([\s\S]*?)<\/bash-stdout>)?\s*(?:<bash-stderr>([\s\S]*?)<\/bash-stderr>)?$/;
 
@@ -513,13 +518,19 @@ export function commandText(text: string): string | undefined {
   return [tags['local-command-stdout'], tags['local-command-stderr']].filter(Boolean).join('\n');
 }
 
-export function decodeAttachments(text: string): { text: string; attachments: Attachment[]; from?: { sessionId: string; title: string } } {
+export function decodeAttachments(text: string): { text: string; attachments: Attachment[]; from?: { sessionId: string; title: string }; artifactView?: { artifact: string } } {
   const attachments: Attachment[] = [];
   let from: { sessionId: string; title: string } | undefined;
   const fm = FROM_RE.exec(text.trim());
   if (fm) {
     from = { sessionId: attrOf(fm[1], 'session') ?? '', title: attrOf(fm[1], 'title') ?? '' };
     text = fm[2];
+  }
+  let artifactView: { artifact: string } | undefined;
+  const av = ARTIFACT_VIEW_RE.exec(text);
+  if (av) {
+    artifactView = { artifact: attrOf(av[1], 'artifact') ?? '' };
+    text = text.slice(av[0].length);
   }
   let clean = text.replace(ATTACH_RE, (_m, kind, name, path, size) => {
     attachments.push({ kind, name, path: path || undefined, size: size ? Number(size) : undefined });
@@ -532,7 +543,7 @@ export function decodeAttachments(text: string): { text: string; attachments: At
       return '';
     });
   }
-  return { text: clean.replace(/\n{3,}$/, '\n\n').trimEnd(), attachments, ...(from ? { from } : {}) };
+  return { text: clean.replace(/\n{3,}$/, '\n\n').trimEnd(), attachments, ...(from ? { from } : {}), ...(artifactView ? { artifactView } : {}) };
 }
 
 function applyUser(c: Conversation, m: any) {
@@ -599,8 +610,9 @@ function applyUser(c: Conversation, m: any) {
   const shell = parseShellRun(rawText);
   const command = commandText(rawText);
   if (command === '' && !images.length) return;
-  const { text, attachments, from } = decodeAttachments(shell ? shell.input : command ?? rawText);
-  containerFor(c, parent).push({ kind: 'user', id: m.uuid ?? String(Math.random()), ts: m.timestamp, text, images, attachments: attachments.length ? attachments : undefined, ...(from ? { from } : {}), ...(shell ? { shell } : {}), meta: isMeta, raw: m });
+  const { text, attachments, from, artifactView } = decodeAttachments(shell ? shell.input : command ?? rawText);
+  if (artifactView && !text && !images.length && !attachments.length) return;
+  containerFor(c, parent).push({ kind: 'user', id: m.uuid ?? String(Math.random()), ts: m.timestamp, text, images, attachments: attachments.length ? attachments : undefined, ...(from ? { from } : {}), ...(artifactView ? { artifactView } : {}), ...(shell ? { shell } : {}), meta: isMeta, raw: m });
   if (!parent && !isMeta) c.turnStartedAt = clock();
 }
 

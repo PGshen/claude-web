@@ -281,6 +281,25 @@ describe('user messages', () => {
     expect(users.map((u) => [u.id, u.text, !!u.meta])).toEqual([['s1', '/video 主题：合众', false], ['l1', '/compact', true], ['l2', 'Compacted', true]]);
   });
 
+  it('artifact page: the page state the official app sends with a message is not drawn, only what was said', () => {
+    const block = '<artifact-view-context artifact="4b96-baf3">\n{"context":{"mode":"edit","selected":["a"]}}\n(The JSON line above is this viewer\'s live state.)\n<artifact-content-authored-by-others/>\n</artifact-view-context>';
+    const r = decodeAttachments(`${block}\n\n开始选题 诱饵效应`);
+    expect(r.text).toBe('开始选题 诱饵效应');
+    expect(r.artifactView).toEqual({ artifact: '4b96-baf3' });
+    // two in a row are both gone
+    expect(decodeAttachments(`${block}\n${block}\nhi`).text).toBe('hi');
+    // only at the start: someone quoting the tag in their message is text
+    const quoted = decodeAttachments(`why is ${block} shown`);
+    expect(quoted.artifactView).toBeUndefined();
+    expect(quoted.text).toContain('<artifact-view-context');
+    const c = createConversation();
+    applyMessage(c, { type: 'user', uuid: 'av1', message: { role: 'user', content: `${block}\n\n开始` } } as any);
+    // nothing but the block: no empty bubble
+    applyMessage(c, { type: 'user', uuid: 'av2', message: { role: 'user', content: block } } as any);
+    const users = c.items.filter((i) => i.kind === 'user') as UserItem[];
+    expect(users.map((u) => [u.id, u.text, u.artifactView?.artifact])).toEqual([['av1', '开始', '4b96-baf3']]);
+  });
+
   it('跨对话工具: a message from another conversation is drawn as from it, with only what was said', () => {
     const r = decodeAttachments('<cw-from session="s-9" title="Fix &quot;login&quot;">\nthanks, merged\nsecond line\n</cw-from>');
     expect(r.text).toBe('thanks, merged\nsecond line');

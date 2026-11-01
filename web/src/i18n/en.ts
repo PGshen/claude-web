@@ -2611,6 +2611,7 @@ export const EN_WEB: Record<string, string> = {
   "来源与索引": "Sources and index",
   "来源设置、账号、模型映射、路由和隐私规则。不含运行状态和本机路径。": "Source settings, accounts, model mappings, routing and privacy rules. No runtime state or local paths.",
   "来自「{title}」": "From \"{title}\"",
+  "发送时正在看 Artifact 页面": "Sent while viewing an artifact",
   "松开鼠标左键": "Release left mouse button",
   "极限": "Max",
   "某次提交": "A specific commit",

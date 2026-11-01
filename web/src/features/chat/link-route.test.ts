@@ -4,10 +4,11 @@ import { followLink, routeLink } from './link-route';
 // the store touches browser globals at import time: followLink's imports are stubbed, `env` is what they see
 const env = vi.hoisted(() => ({
   settings: {} as Record<string, unknown>,
+  mobile: false,
   desktop: null as null | { openExternal: (u: string) => Promise<void> },
   openInBrowser: (_u: string) => {},
 }));
-vi.mock('@/store', () => ({ useStore: { getState: () => ({ settings: env.settings }) } }));
+vi.mock('@/store', () => ({ useStore: { getState: () => ({ settings: env.settings, mobile: env.mobile }) } }));
 vi.mock('@/desktop', () => ({ get desktop() { return env.desktop; } }));
 vi.mock('@/features/remote-guard', () => ({ blockRemoteOpen: () => false }));
 vi.mock('@/features/workbench/right-panel', () => ({ openInBrowser: (u: string) => env.openInBrowser(u) }));
@@ -27,7 +28,7 @@ describe('followLink: web pages', () => {
     env.settings = {};
     vi.stubGlobal('window', { open: winOpen });
   });
-  afterEach(() => { vi.unstubAllGlobals(); env.desktop = null; env.settings = {}; });
+  afterEach(() => { vi.unstubAllGlobals(); env.desktop = null; env.settings = {}; env.mobile = false; });
 
   it('desktop, setting absent or on → the built-in browser', () => {
     followLink({ to: 'web', url: URL_ }, 's1');
@@ -48,8 +49,22 @@ describe('followLink: web pages', () => {
     expect(openExternal).toHaveBeenCalledWith(URL_);
     expect(openInBrowser).not.toHaveBeenCalled();
   });
-  it('the web version (no desktop) → a new browser tab (many sites refuse to be framed)', () => {
+  it('the web version (no desktop) → the built-in browser too; Ctrl / Cmd and the setting off → a new browser tab', () => {
     env.desktop = null;
+    followLink({ to: 'web', url: URL_ }, 's1');
+    expect(openInBrowser).toHaveBeenCalledWith(URL_);
+    expect(winOpen).not.toHaveBeenCalled();
+    followLink({ to: 'web', url: URL_ }, 's1', { external: true });
+    env.settings = { 'web.browser.openLinks': false };
+    followLink({ to: 'web', url: URL_ }, 's1');
+    expect(winOpen).toHaveBeenCalledTimes(2);
+    expect(winOpen).toHaveBeenCalledWith(URL_, '_blank', 'noopener,noreferrer');
+    expect(openInBrowser).toHaveBeenCalledTimes(1);
+  });
+  it('the web version on a phone → a new browser tab (a framed page in the drawer is mostly blank)', () => {
+    env.desktop = null;
+    env.settings = {};
+    env.mobile = true;
     followLink({ to: 'web', url: URL_ }, 's1');
     expect(winOpen).toHaveBeenCalledWith(URL_, '_blank', 'noopener,noreferrer');
     expect(openInBrowser).not.toHaveBeenCalled();

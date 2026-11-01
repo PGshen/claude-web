@@ -100,13 +100,14 @@ export function openExternal(url: string): void {
 
 /**
  * Acts on a route. `sessionId`: the conversation the link is in (a remote one's files are on that machine).
- * A web page opens in the built-in browser (stage B) — in the desktop app only, with `web.browser.openLinks` not off;
- * the web version has no built-in browser that can show most sites (they refuse to be framed): a new tab there.
- * `external` (Ctrl / Cmd held): the system browser.
+ * A web page opens in the built-in browser (stage B), with `web.browser.openLinks` not off. In the web version that is
+ * an iframe, and a site that refuses to be framed stays blank there (the panel says so and its ··· opens it outside);
+ * a phone gets a new tab: a blank bottom drawer is all it would have. `external` (Ctrl / Cmd held): the system browser.
  */
 export function followLink(r: LinkRoute, sessionId: string | null | undefined, opts: { external?: boolean } = {}): void {
   if (r.to === 'web') {
-    if (!opts.external && desktop && useStore.getState().settings?.['web.browser.openLinks'] !== false) return openInBrowser(r.url);
+    const st = useStore.getState();
+    if (!opts.external && (desktop || !st.mobile) && st.settings?.['web.browser.openLinks'] !== false) return openInBrowser(r.url);
     return openExternal(r.url);
   }
   if (r.to === 'external') return openExternal(r.url);

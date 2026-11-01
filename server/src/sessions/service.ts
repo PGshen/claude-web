@@ -19,7 +19,7 @@ export const projectsDir = path.join(claudeDir, 'projects');
 /** Titles derive from the first prompt, which may carry attachment markers and pasted blobs — keep the human part. */
 export function cleanTitle(t: string | undefined): string {
   if (!t) return '';
-  return t.replace(/<attached\b[^>]*>[\s\S]*?<\/attached>/g, '').replace(/<attached\b[^>]*\/?>/g, '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  return t.replace(/<artifact-view-context\b[^>]*>[\s\S]*?<\/artifact-view-context>/g, '').replace(/<attached\b[^>]*>[\s\S]*?<\/attached>/g, '').replace(/<attached\b[^>]*\/?>/g, '').replace(/\s+/g, ' ').trim().slice(0, 200);
 }
 
 /**
