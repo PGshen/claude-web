@@ -98,6 +98,7 @@ make start           # 后台跑（还有 stop / restart / status / logs；pid �
 | [ascii-themes](docs/notes/ascii-themes.md) | 字符画主题与过程动画（2026-10-22，用户要求） | 主题包、data-ascii、16 个过程 / 帧表、ProcessGlyph、Worker 背景的沙箱和看门狗、安静区、十套内置、theme-check 脚本、ascii-theme skill 与试跑、设置页画廊、截图办法 |
 | [node-graph](docs/notes/node-graph.md) | 节点图（spec 2026-10-24 D） | ui/node-graph 共用组件；nodegraph 格式、marks / 状态标签；后台指挥台、编排执行图、对话代码块与 Mermaid 切换；动效与 150 张上限；ui.nodegraphHint |
 | [security-audit](docs/notes/security-audit.md) | 安全审计（2026-10-31，用户要求） | SEC-01～20 清单与状态表：DNS rebinding、局域网明文、联邦、密钥进命令行；手机壳 / 转发、插件沙箱 / 插件市场几条的代码已删 |
+| [login](docs/notes/login.md) | 登录（2026-11-01，用户要求） | 单账号登录、npm run account、Nginx 配置、开登录后关掉的门（本机信任 / 令牌 / 配对）、防猜密码 |
 | [screen-recording](docs/notes/screen-recording.md) | 录屏（阶段 E3，2026-10-25） | + 菜单录屏、自己的选择框、主进程只放行选中的源、录制格式与上限、抽关键帧、录下 Claude 的操作 |
 
 ## 结构

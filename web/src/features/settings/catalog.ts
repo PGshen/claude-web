@@ -80,7 +80,7 @@ export const BODY_INFO: Record<BodyId, { l: string; keywords: string }> = {
   subagents: { l: tr('Claude 子代理列表'), keywords: tr('subagent 子代理 agents md') },
   memory: { l: tr('记忆开关与注入'), keywords: tr('memory 记忆 跨对话 mcp sqlite 遗忘 清空 注入') },
   web: { l: tr('搜索与内置浏览器'), keywords: tr('web search browser 搜索 浏览器 联网 上网 网页 bing duckduckgo google yahoo baidu 百度 brave 密钥 截图 登录状态') },
-  remote: { l: tr('手机访问'), keywords: tr('remote lan phone mobile 手机 局域网 配对 配对码 二维码 qr 设备 吊销 端口 不让电脑睡眠 睡眠 休眠 keep awake') },
+  remote: { l: tr('手机访问'), keywords: tr('remote lan phone mobile 手机 局域网 配对 配对码 二维码 qr 设备 吊销 端口 不让电脑睡眠 睡眠 休眠 keep awake 登录 退出登录 login logout sign out') },
   peers: { l: tr('其它电脑'), keywords: tr('其它机器 其它电脑 跨机器 联邦 peer federation 加入 重新配对') },
   hosts: { l: tr('SSH 隧道'), keywords: tr('ssh 隧道 tunnel 远程主机 端口转发 免密') },
   im: { l: tr('机器人列表'), keywords: tr('telegram discord slack 飞书 feishu lark 钉钉 dingtalk 企业微信 wecom 微信 机器人 bot im 网关 配对') },

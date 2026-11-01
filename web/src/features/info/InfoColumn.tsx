@@ -186,7 +186,7 @@ function EnvCard({ sessionId }: { sessionId: string }) {
       <Row icon="machine">{peer ? peer.name : tr('本机')}</Row>
       {cwd && <Row icon="folder" title={cwd}>{basename(cwd)}{worktree ? <span className="ic-dim"> · {tr('独立副本')}</span> : null}</Row>}
       {branch && <Row icon="branch" title={branch}>{branch}</Row>}
-      {remote && (
+      {remote && !remote.closed && (
         <Row icon="device" title={tr('让配对过的手机连上这台电脑，在手机上看和继续对话')} end={<button className={clsx('toggle sm', remote.enabled && 'on')} role="switch" aria-checked={remote.enabled} aria-label={tr('手机远程')} onClick={() => void toggleRemote()} />}>
           {tr('手机远程')}
         </Row>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ws } from '@/ws/client';
+import { logout, ws } from '@/ws/client';
 import { useStore } from '@/store';
 import { clsx } from '@/util';
 import { dlg } from '@/ui/dialog';
@@ -70,6 +70,13 @@ export function RemoteSection() {
   };
   const left = pair ? Math.max(0, Math.round((pair.expiresAt - Date.now()) / 1000)) : 0;
   if (!st) return <div className="section"><div className="empty">{tr('读取中…')}</div></div>;
+  if (st.closed) return (
+    <div className="section">
+      <h5>{tr('登录')}</h5>
+      <div className="sub" style={{ marginBottom: 10 }}>{tr('这台服务器开了登录，别的设备打开地址、登录后就能用，不需要配对。')}</div>
+      <button className="btn sm" data-id="logout" onClick={() => logout().catch((e) => toast(e.message))}>{tr('退出登录')}</button>
+    </div>
+  );
   return (
     <div className="section">
       <h5>{tr('局域网 / 手机访问')}</h5>

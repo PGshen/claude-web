@@ -270,7 +270,7 @@ export const EN_WEB: Record<string, string> = {
   "proxy 代理 梯子 vpn clash v2ray http_proxy https_proxy 系统代理 pac 地区 region 403 连不上 超时": "proxy 代理 梯子 vpn clash v2ray http_proxy https_proxy 系统代理 pac 地区 region 403 连不上 超时 system proxy timeout can’t connect",
   "quit exit close 退出 关闭 确认": "quit exit close 退出 关闭 确认 confirm",
   "rate limit quota 限流 额度 额度恢复后自动继续": "rate limit quota 限流 额度 额度恢复后自动继续 auto continue resume",
-  "remote lan phone mobile 手机 局域网 配对 配对码 二维码 qr 设备 吊销 端口 不让电脑睡眠 睡眠 休眠 keep awake": "remote lan phone mobile 手机 局域网 配对 配对码 二维码 qr 设备 吊销 端口 不让电脑睡眠 睡眠 休眠 keep awake",
+  "remote lan phone mobile 手机 局域网 配对 配对码 二维码 qr 设备 吊销 端口 不让电脑睡眠 睡眠 休眠 keep awake 登录 退出登录 login logout sign out": "remote lan phone mobile 手机 局域网 配对 配对码 二维码 qr 设备 吊销 端口 不让电脑睡眠 睡眠 休眠 keep awake login logout sign out",
   "secret keychain credential dpapi 钥匙串 加密 密钥": "secret keychain credential dpapi 钥匙串 加密 密钥 encrypt key",
   "secret 密钥 加密": "secret 密钥 加密 key keys api key encryption",
   "session library 导入 索引 加入 移出 重建 claude.ai 数据导出 export zip": "session library import index add remove rebuild claude.ai data export zip",
@@ -4016,4 +4016,6 @@ export const EN_WEB: Record<string, string> = {
   "隐藏文件树": "Hide file tree",
   "预览的文件": "Previewed files",
   "「{name}」还没保存，仍然关闭？": "“{name}” has unsaved changes. Close it anyway?",
+  "这台服务器开了登录，别的设备打开地址、登录后就能用，不需要配对。": "This server uses sign-in. Other devices open its address and sign in; no pairing is needed.",
+  "退出登录": "Sign out",
 };

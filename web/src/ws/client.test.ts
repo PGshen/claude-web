@@ -106,6 +106,21 @@ describe('WsClient on an injected socket', () => {
     expect(status).toEqual([true, false, false, true, false]);
   });
 
+  it('says so each time a socket goes down, so the page can find out it was signed out', () => {
+    vi.useFakeTimers();
+    const c = client();
+    const down = vi.fn();
+    c.onDown = down;
+    c.connect();
+    sockets[0].open();
+    expect(down).not.toHaveBeenCalled();
+    sockets[0].drop();
+    expect(down).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(500);
+    sockets[1].drop(); // refused without ever opening: what an expired sign-in looks like
+    expect(down).toHaveBeenCalledTimes(2);
+  });
+
   it('the backoff stops growing at 8 s', () => {
     vi.useFakeTimers();
     const c = client();

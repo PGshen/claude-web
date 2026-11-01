@@ -309,7 +309,7 @@ export interface Schedule { id: string; name: string; cwd: string; prompt: strin
 export interface LimitWindow { label: string; percent: number; resetsAt: string | null; active: boolean; severity?: string }
 // ---- remote access / phones / IM (phase 6) ----
 export interface DeviceInfo { id: string; name: string; createdAt: number; lastSeenAt: number; ip?: string; ua?: string; /** another computer (federation) */ kind?: 'peer' }
-export interface RemoteStatus { enabled: boolean; running: boolean; port: number; addresses: string[]; error: string; devices: DeviceInfo[]; pair: { code: string; expiresAt: number } | null; /** 不让电脑睡眠 (setting remote.keepAwake) */ keepAwake: boolean }
+export interface RemoteStatus { enabled: boolean; running: boolean; port: number; addresses: string[]; error: string; devices: DeviceInfo[]; pair: { code: string; expiresAt: number } | null; /** 不让电脑睡眠 (setting remote.keepAwake) */ keepAwake: boolean; /** an account is set: this server is signed in to, and pairing is closed */ closed?: boolean }
 /** remote.pairCode: `url` is the LAN QR address. */
 export interface RemotePairCode { code: string; expiresAt: number; url: string }
 /** Another machine running claude-web, reached through an ssh port-forward. */

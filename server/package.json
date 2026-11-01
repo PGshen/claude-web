@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
+    "account": "tsx src/auth/cli.ts",
     "build": "tsc -p tsconfig.build.json",
     "test": "vitest run"
   },

@@ -34,7 +34,8 @@ export class RemoteService extends EventEmitter {
   port = 0;
   error = '';
   private primaryIp = '';
-  constructor(private meta: MetaStore, private makeServer: () => http.Server, private host = '0.0.0.0') { super(); }
+  /** `closed`: an account is set (auth/login.ts): no listener, no codes, no device gets in, whatever meta.json still says. */
+  constructor(private meta: MetaStore, private makeServer: () => http.Server, private host = '0.0.0.0', private closed = false) { super(); }
 
   /** The interface that carries the default route (a UDP connect sends nothing but picks the source address). */
   refreshPrimary(): Promise<string> {
@@ -49,7 +50,7 @@ export class RemoteService extends EventEmitter {
     });
   }
 
-  enabled() { return !!this.meta.settings()['remote.enabled']; }
+  enabled() { return !this.closed && !!this.meta.settings()['remote.enabled']; }
   /** The listener is up (`port` is then the one it listens on). */
   isRunning() { return !!this.server; }
   configuredPort() { return Number(this.meta.settings()['remote.port'] ?? 3091) || 3091; }
@@ -108,6 +109,7 @@ export class RemoteService extends EventEmitter {
   }
 
   async set(patch: { enabled?: boolean; port?: number }) {
+    if (this.closed) throw new Error(tr('这台服务器开了登录，配对已关闭'));
     if (patch.port !== undefined) await this.meta.setSetting('remote.port', Math.max(1, Math.min(65535, Math.floor(patch.port))));
     if (patch.enabled !== undefined) await this.meta.setSetting('remote.enabled', !!patch.enabled);
     await this.stop();
@@ -115,7 +117,7 @@ export class RemoteService extends EventEmitter {
   }
 
   status(): RemoteStatus {
-    return { enabled: this.enabled(), running: !!this.server, port: this.server ? this.port : this.configuredPort(), addresses: this.addresses(), error: this.error, devices: this.devices(), pair: this.pair && this.pair.expiresAt > Date.now() ? { code: this.pair.code, expiresAt: this.pair.expiresAt } : null, keepAwake: this.meta.settings()['remote.keepAwake'] !== false };
+    return { enabled: this.enabled(), running: !!this.server, port: this.server ? this.port : this.configuredPort(), addresses: this.addresses(), error: this.error, devices: this.devices(), pair: this.pair && this.pair.expiresAt > Date.now() ? { code: this.pair.code, expiresAt: this.pair.expiresAt } : null, keepAwake: this.meta.settings()['remote.keepAwake'] !== false, ...(this.closed ? { closed: true } : {}) };
   }
 
   devices(): DeviceInfo[] {
@@ -124,6 +126,7 @@ export class RemoteService extends EventEmitter {
 
   /** New 6-digit pairing code; replaces the previous one. */
   async newPairCode(): Promise<RemotePairCode> {
+    if (this.closed) throw new Error(tr('这台服务器开了登录，配对已关闭'));
     void this.refreshPrimary();
     const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
     const expiresAt = Date.now() + PAIR_TTL_MS;
@@ -136,6 +139,7 @@ export class RemoteService extends EventEmitter {
 
   /** Exchange a pairing code for a device token. */
   async redeem(code: string, name: string, req: IncomingMessage, kind?: 'peer'): Promise<{ token: string; device: DeviceInfo } | { error: string }> {
+    if (this.closed) return { error: tr('这台服务器开了登录，配对已关闭') };
     const p = this.pair;
     if (!p || p.expiresAt < Date.now()) return { error: tr('配对码已过期，请在电脑上重新生成') };
     if (p.tries >= MAX_TRIES) { this.pair = null; return { error: tr('尝试次数过多，请重新生成配对码') }; }
@@ -155,7 +159,7 @@ export class RemoteService extends EventEmitter {
 
   /** Is this a valid device token? Returns the device id and bumps lastSeen. */
   authenticate(token: string | null, req?: IncomingMessage): string | null {
-    if (!token) return null;
+    if (!token || this.closed) return null;
     let id = this.tokenCache.get(token);
     if (!id) {
       const h = hash(token);
@@ -201,14 +205,8 @@ function guessName(ua: string) {
   return tr('设备');
 }
 
-/**
- * The /pair page: reads the code from the URL fragment, asks for a device name and opens the app. The token lives only in
- * the HttpOnly cookie /api/pair sets (SEC-06): no script can read it and it never goes into a URL; an older token in
- * localStorage is dropped.
- */
-export function pairPage() {
-  return `<!doctype html><html lang="${getLocale() === 'zh' ? 'zh-CN' : 'en'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f7f6f2" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#12110f" media="(prefers-color-scheme: dark)"><title>${tr('配对 · Claude Web')}</title>
-<style>:root{--g:#f7f6f2;--c:#fefdfc;--f:#1c1917;--f2:#67625f;--e:#be2a27;--r:#a94900;--pf:#fefdfc}
+/** The look of the small pages served outside the app: /pair and /login. */
+export const CARD_PAGE_STYLE = `:root{--g:#f7f6f2;--c:#fefdfc;--f:#1c1917;--f2:#67625f;--e:#be2a27;--r:#a94900;--pf:#fefdfc}
 @media (prefers-color-scheme:dark){:root{--g:#12110f;--c:#1b1a18;--f:#eeedea;--f2:#a5a39e;--e:#ff8179;--r:#f9a56e;--pf:#1b1a18}}
 body{margin:0;font:16px Inter,system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei UI","Microsoft YaHei",sans-serif;background:var(--g);color:var(--f);display:flex;min-height:100vh;min-height:100dvh;align-items:center;justify-content:center;padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom);box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 .card{width:min(420px,100%);background:var(--c);border-radius:24px;padding:28px 24px;box-shadow:0 0 0 1px color-mix(in oklab,var(--f) 7%,transparent),0 12px 32px -16px rgba(40,30,20,.25)}
@@ -218,7 +216,16 @@ input{width:100%;box-sizing:border-box;font:inherit;height:48px;padding:0 14px;b
 input.code{height:60px;font-size:26px;letter-spacing:8px;text-align:center;font-family:ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace}
 button{margin-top:22px;width:100%;font:inherit;font-weight:600;height:48px;border:0;border-radius:999px;background:var(--f);color:var(--pf);touch-action:manipulation;transition:transform .12s cubic-bezier(.23,1,.32,1)}button:active{transform:scale(.98)}
 .err{color:var(--e);font-size:13px;margin-top:12px;min-height:18px}
-@media (prefers-reduced-motion:reduce){button{transition:none}button:active{transform:none}}</style></head><body><div class="card"><h1><i>✱</i>${tr('配对这台设备')}</h1><p>${tr('输入电脑上 Claude Web「远程访问」里显示的 6 位配对码。')}</p>
+@media (prefers-reduced-motion:reduce){button{transition:none}button:active{transform:none}}`;
+
+/**
+ * The /pair page: reads the code from the URL fragment, asks for a device name and opens the app. The token lives only in
+ * the HttpOnly cookie /api/pair sets (SEC-06): no script can read it and it never goes into a URL; an older token in
+ * localStorage is dropped.
+ */
+export function pairPage() {
+  return `<!doctype html><html lang="${getLocale() === 'zh' ? 'zh-CN' : 'en'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f7f6f2" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#12110f" media="(prefers-color-scheme: dark)"><title>${tr('配对 · Claude Web')}</title>
+<style>${CARD_PAGE_STYLE}</style></head><body><div class="card"><h1><i>✱</i>${tr('配对这台设备')}</h1><p>${tr('输入电脑上 Claude Web「远程访问」里显示的 6 位配对码。')}</p>
 <form id="f"><label>${tr('配对码')}</label><input class="code" id="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" required><label>${tr('设备名称')}</label><input id="name" placeholder="${tr('例如 我的手机')}"><button>${tr('配对并打开')}</button><div class="err" id="err"></div></form></div>
 <script>const c=location.hash.slice(1);if(/^\\d{6}$/.test(c))document.getElementById('code').value=c;
 document.getElementById('f').onsubmit=async(e)=>{e.preventDefault();const err=document.getElementById('err');err.textContent='';

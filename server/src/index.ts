@@ -44,6 +44,8 @@ import os from 'node:os';
 import { randomBytes } from 'node:crypto';
 import { ProjectFiles, PROJECT_FILE_MAX } from './cloud/project-files.js';
 import { loopbackHost, sameOriginRequest, wsOriginOk } from './cloud/same-origin.js';
+import { LoginService, SESSION_COOKIE } from './auth/login.js';
+import { cookieValue, denyAnonymous, handleLogin, internalRequest } from './auth/http.js';
 import { DispatchService } from './dispatch/service.js';
 import type { CloudServices } from './cloud/handlers.js';
 import { ClaudeAiSource } from './library/claudeai-source.js';
@@ -186,6 +188,8 @@ export async function startServer(opts: StartOptions = {}): Promise<RunningServe
 
   const meta = new MetaStore();
   await meta.load();
+  const login = LoginService.load();
+  if (login && token) console.warn('[login] an account is set: CLAUDE_WEB_TOKEN is ignored');
   // the user's proxy (a ladder's system proxy, HTTP(S)_PROXY, or 设置 → 供应商 → 网络代理) for this process's own
   // requests and every CLI it starts; requests that go out wait for this first look (net/proxy.ts)
   proxy.configure(() => meta.settings()['network.proxy']);
@@ -195,6 +199,8 @@ export async function startServer(opts: StartOptions = {}): Promise<RunningServe
   let fedHealth: ((nonce: string | null, authed: boolean) => object) | null = null;
   /** Main token (desktop / CLI) or a paired device token (query ?token= or cookie cw_token). */
   const authOk = (req: http.IncomingMessage, url: URL): boolean => {
+    // an account is set: its sign-in is the only way in — no URL token, no device, no trust in loopback (auth/login.ts)
+    if (login) return login.valid(cookieValue(req.headers.cookie, SESSION_COOKIE));
     const presented = url.searchParams.get('token') ?? cookieToken(req.headers.cookie);
     const viaRemote = !!(req.socket as any).cwRemote;
     // local browser mode without a token: trust loopback — only when the request is addressed to it, so a rebound
@@ -205,7 +211,7 @@ export async function startServer(opts: StartOptions = {}): Promise<RunningServe
   };
   /** The upload endpoints: like authOk, and with no token to guard them (loopback trusted) same-origin only (cloud/same-origin.ts). */
   const uploadOk = (req: http.IncomingMessage, url: URL): boolean =>
-    authOk(req, url) && (!!token || !!(req.socket as any).cwRemote || sameOriginRequest(req));
+    authOk(req, url) && (login ? sameOriginRequest(req) : !!token || !!(req.socket as any).cwRemote || sameOriginRequest(req));
   // 隐私保护's relay on this listener (`/gateway/~v/…`, privacy/relay.ts): made once the privacy service is
   let privacyRelay: PrivacyRelay | null = null;
   const isLoopbackAddr = (a: string | undefined) => !!a && (a === '::1' || a.startsWith('127.') || a.startsWith('::ffff:127.'));
@@ -237,9 +243,11 @@ export async function startServer(opts: StartOptions = {}): Promise<RunningServe
   const handler = (req: http.IncomingMessage, res: http.ServerResponse) => {
     const url = requestUrl(req, HOST);
     if (publish.handle(req, res, url)) return;
+    // with login on the server sits behind a proxy on this machine, whose requests also come from loopback (auth/http.ts)
+    const internal = !login || internalRequest(req);
     // 隐私保护's relay: loopback only (404 on the LAN listener); the client's own credential goes on as it came
     if (url.pathname.startsWith(RELAY_PREFIX)) {
-      if (!privacyRelay || (req.socket as any).cwRemote || !isLoopbackAddr(req.socket.remoteAddress)) { res.writeHead(404).end(); return; }
+      if (!privacyRelay || (req.socket as any).cwRemote || !isLoopbackAddr(req.socket.remoteAddress) || !internal) { res.writeHead(404).end(); return; }
       void privacyRelay.serve(req, res, url).catch((e) => {
         console.error('[privacy relay]', e);
         if (!res.headersSent) res.writeHead(500, { 'content-type': 'application/json' }).end(JSON.stringify({ error: { message: String(e?.message ?? e) } }));
@@ -248,9 +256,15 @@ export async function startServer(opts: StartOptions = {}): Promise<RunningServe
       return;
     }
     // 联网: the `web` MCP processes' tool calls — this start's secret, loopback only (404 on the LAN listener)
-    if (web && handleWebTool(web, req, res, url)) return;
+    if (internal && web && handleWebTool(web, req, res, url)) return;
     // 操控电脑: a `computer` MCP process asking the user for access — the same terms (computer/http.ts)
-    if (computer && handleComputerAsk(computer, req, res, url)) return;
+    if (internal && computer && handleComputerAsk(computer, req, res, url)) return;
+    if (handleLogin(login, req, res, url, { language: () => meta.settings()[LANGUAGE_KEY], onLogout: dropEndedSessions })) return;
+    if (login) {
+      // pairing is closed with login on, for a signed-in browser as well
+      if (url.pathname === '/pair' || url.pathname === '/api/pair') { res.writeHead(404).end(); return; }
+      if (url.pathname !== '/api/health' && !authOk(req, url)) { denyAnonymous(req, res); return; }
+    }
     if (url.pathname === '/pair' && req.method === 'GET') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); res.end(pairPage()); return; }
     if (url.pathname === '/api/pair' && req.method === 'POST') {
       let body = '';
@@ -270,6 +284,8 @@ export async function startServer(opts: StartOptions = {}): Promise<RunningServe
     if (url.pathname === '/manifest.webmanifest') { res.writeHead(200, { 'content-type': 'application/manifest+json' }); res.end(JSON.stringify({ name: 'Claude Web', short_name: 'Claude Web', start_url: './', display: 'standalone', background_color: '#f7f6f2', theme_color: '#f7f6f2', icons: [{ src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }, { src: 'icon-192.png', sizes: '192x192', type: 'image/png' }, { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }] })); return; }
     if (url.pathname === '/api/health') {
       res.writeHead(200, { 'content-type': 'application/json' });
+      // open to anyone who has the address: with login on it says that the server is up, and nothing else
+      if (login) { res.end(JSON.stringify({ ok: true })); return; }
       // federation: a hash of the serverId (+ a nonce proof) for anyone; the ids themselves only with a valid token
       res.end(JSON.stringify({ ok: true, version, ...(fedHealth?.(url.searchParams.get('nonce'), authOk(req, url)) ?? {}) }));
       return;
@@ -380,10 +396,19 @@ export async function startServer(opts: StartOptions = {}): Promise<RunningServe
       return;
     }
     const presented = url.searchParams.get('token') ?? cookieToken(req.headers.cookie);
-    (req as any).cwDevice = presented && presented !== token ? remote.authenticate(presented, req) : null;
-    wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
+    (req as any).cwDevice = !login && presented && presented !== token ? remote.authenticate(presented, req) : null;
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      if (login) (ws as any).cwSession = cookieValue(req.headers.cookie, SESSION_COOKIE);
+      wss.emit('connection', ws, req);
+    });
   };
   server.on('upgrade', upgrade);
+  /** A socket lives on after its sign-in ends (signed out, 30 days up): those are cut, which sends the page to /login. */
+  const dropEndedSessions = () => {
+    if (!login) return;
+    for (const c of wss.clients) if (!login.valid((c as any).cwSession)) c.terminate();
+  };
+  if (login) setInterval(dropEndedSessions, 60_000).unref();
   const secrets = new SecretService();
   const providers = new ProviderService(meta, secrets);
   await providers.warm();
@@ -461,7 +486,7 @@ export async function startServer(opts: StartOptions = {}): Promise<RunningServe
   // sync bundles (spec 2026-10-26 §8)
   const sync = new SyncService({ meta, secrets });
   const syncRemote = new RemoteSyncService({ meta, secrets, sync });
-  remote = new RemoteService(meta, () => { const s = http.createServer(handler); s.on('upgrade', upgrade); return s; });
+  remote = new RemoteService(meta, () => { const s = http.createServer(handler); s.on('upgrade', upgrade); return s; }, undefined, !!login);
   const tunnels = new TunnelManager();
   const sessionsSvc = new SessionService(path.join(dataDir(), 'session-titles.json'));
   const im = new ImService(meta, secrets, pool, sessionsSvc);

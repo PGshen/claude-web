@@ -28,6 +28,8 @@ export class WsClient {
   private queue: { id: string; raw: string }[] = [];
   connected = false;
   onStatus: ((c: boolean) => void) | null = null;
+  /** a socket closed or could not open */
+  onDown: (() => void) | null = null;
 
   /** `open` makes one socket per (re)connect: a WebSocket to this host by default (tests pass fakes) */
   constructor(private readonly open: () => WebSocketLike = openWebSocket) {}
@@ -60,6 +62,7 @@ export class WsClient {
       this.ws = null;
       this.connected = false;
       this.onStatus?.(false);
+      this.onDown?.();
       // only fail what actually went out on this socket: a queued request was never sent, it is flushed on the
       // next open — rejecting it here as well would report a failure for a request the server then executes
       const queued = new Set(this.queue.map((q) => q.id));
@@ -141,3 +144,15 @@ export function authToken(): string | null {
 }
 
 export const ws = new WsClient();
+// signed out or expired on a server with login: the socket can never come back, so stop retrying and go sign in
+ws.onDown = () => {
+  void fetch('api/auth/status').then((r) => r.json()).then((s) => {
+    if (s.login && !s.authed) location.replace('login');
+  }).catch(() => { /* the server is away: keep retrying */ });
+};
+
+/** Ends this browser's sign-in; the server cuts the socket as well. */
+export async function logout() {
+  await fetch('api/logout', { method: 'POST' });
+  location.replace('login');
+}
