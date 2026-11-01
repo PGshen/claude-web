@@ -85,7 +85,7 @@ Both read and write the same data (`~/.claude` and `~/.claude-web`), so you can 
 
 ### Desktop app (download an installer)
 
-Download from [Releases](https://github.com/ypyik0669/claude-web/releases/latest):
+Download from [Releases](https://github.com/PGshen/claude-web/releases/latest):
 
 | System | File |
 | --- | --- |
@@ -100,7 +100,7 @@ The `.zip`, `.yml` and `.blockmap` files are used by auto-update; you don't need
 You need [Node.js 22.13+](https://nodejs.org/) (it uses the built-in `node:sqlite`) and Git:
 
 ```bash
-git clone https://github.com/ypyik0669/claude-web.git
+git clone https://github.com/PGshen/claude-web.git
 cd claude-web
 npm install
 npm run build

@@ -2,7 +2,7 @@
 
 **简体中文** · [English](CHANGELOG.md)
 
-每个版本的变化都记在这里；安装包在 [Releases](https://github.com/ypyik0669/claude-web/releases) 下载。版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
+每个版本的变化都记在这里；安装包在 [Releases](https://github.com/PGshen/claude-web/releases) 下载。版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
 ## [0.4.6] — 2026-10-30
 

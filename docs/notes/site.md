@@ -38,6 +38,7 @@
 
 - `.github/workflows/site.yml`：push main（站点、README、CHANGELOG、i18n 相关路径）或发 release 时构建并发布。
 - 发 release 时不在 tag 上构建：`github-pages` 环境只允许 main 部署，所以 release 那次只跑 `redispatch`，用 `gh workflow run site.yml --ref main` 在 main 上重跑一次，下一次运行里官网就是新版本和新安装包。
+- **2026-11-01 仓库独立成 `PGshen/claude-web` 后，下面三条 Pages / DNS / HTTPS 记的都是原仓库 `ypyik0669/claude-web` 的配置**：新仓库还没开 Pages（`repos/PGshen/claude-web/pages` 是 404），也没有 Release（`site/scripts/releases.ts` 读到的是空的）；`site/media.json` 的 `repo` 也还指着原仓库，那里才有 `site-media` 这个 Release，重新跑 `scripts/upload-site-media.cjs` 才会改过来（`site/src/showcase/media.test.ts` 跟着改）。
 - Pages 设置（已设好）：来源 GitHub Actions，自定义域名 `psycioxyxs.my`；Actions 发布不读 CNAME 文件，域名只在 Pages 设置里。
 - DNS（Cloudflare，zone `psycioxyxs.my`，备注「GitHub Pages - Claude Web site」，已建好）：根域名 4 条 A（185.199.108.153 / 109.153 / 110.153 / 111.153）、
   4 条 AAAA（2606:50c0:8000::153 … 8003::153），`www` CNAME → `ypyik0669.github.io`；全部「仅 DNS」（灰云），否则 GitHub 签不出 HTTPS 证书。

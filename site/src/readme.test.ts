@@ -18,9 +18,9 @@ describe('readmeLink', () => {
     expect(headings(zh).length).toBe(headings(en).length);
   });
   it('points into the README of the page\'s language', () => {
-    expect(readmeLink('en', '3. ')).toBe('https://github.com/ypyik0669/claude-web#3-permission-prompts-and-permission-modes');
-    expect(readmeLink('zh', '3. ')).toBe('https://github.com/ypyik0669/claude-web/blob/main/README.zh-CN.md#3-权限审批与权限模式');
-    expect(readmeLink('en', 'About the installer')).toBe('https://github.com/ypyik0669/claude-web#about-the-installer-warnings');
+    expect(readmeLink('en', '3. ')).toBe('https://github.com/PGshen/claude-web#3-permission-prompts-and-permission-modes');
+    expect(readmeLink('zh', '3. ')).toBe('https://github.com/PGshen/claude-web/blob/main/README.zh-CN.md#3-权限审批与权限模式');
+    expect(readmeLink('en', 'About the installer')).toBe('https://github.com/PGshen/claude-web#about-the-installer-warnings');
   });
   it('finds every chapter\'s step in both languages', () => {
     for (const locale of ['en', 'zh'] as const) for (const ch of copy(locale).chapters) expect(() => readmeLink(locale, ch.readme)).not.toThrow();

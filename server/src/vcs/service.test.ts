@@ -5,7 +5,7 @@ const fakeGit = (url: string) => ({ remotes: async () => [{ name: 'origin', url 
 
 describe('VcsService.target', () => {
   it('parses github https / ssh / git@ remotes', async () => {
-    expect(await new VcsService(fakeGit('https://github.com/ypyik0669/claude-web.git')).target('x')).toEqual({ provider: 'github', host: 'github.com', owner: 'ypyik0669', repo: 'claude-web' });
+    expect(await new VcsService(fakeGit('https://github.com/PGshen/claude-web.git')).target('x')).toEqual({ provider: 'github', host: 'github.com', owner: 'PGshen', repo: 'claude-web' });
     expect(await new VcsService(fakeGit('git@github.com:owner/repo.git')).target('x')).toEqual({ provider: 'github', host: 'github.com', owner: 'owner', repo: 'repo' });
     expect(await new VcsService(fakeGit('ssh://git@github.com:22/owner/repo')).target('x')).toEqual({ provider: 'github', host: 'github.com', owner: 'owner', repo: 'repo' });
     expect(await new VcsService(fakeGit('https://user@ghe.corp.com/team/tool')).target('x')).toEqual({ provider: 'github', host: 'ghe.corp.com', owner: 'team', repo: 'tool' });

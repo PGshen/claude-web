@@ -85,7 +85,7 @@
 
 ### 桌面版（下载安装包）
 
-到 [Releases](https://github.com/ypyik0669/claude-web/releases/latest) 下载：
+到 [Releases](https://github.com/PGshen/claude-web/releases/latest) 下载：
 
 | 系统 | 文件 |
 | --- | --- |
@@ -100,7 +100,7 @@
 需要 [Node.js 22.13+](https://nodejs.org/)（用到内置的 `node:sqlite`）和 Git：
 
 ```bash
-git clone https://github.com/ypyik0669/claude-web.git
+git clone https://github.com/PGshen/claude-web.git
 cd claude-web
 npm install
 npm run build

@@ -35,7 +35,7 @@ npm run dev          # 开发：server tsx watch + vite :5173（代理 /ws 到 3
 - 改文件用 Edit / Write，或把脚本写成文件再跑：bash 里 `node -e "…"` 的反引号会被当命令替换，heredoc 会吃反斜杠。仓库是 LF（`.gitattributes`）。
 - 测试：`npm run typecheck`、`npm test`、`npm run build:all`、`npm run e2e`（自带临时 HOME，不花 token）、`node scripts/ui-smoke.cjs`（Electron，任何 console 错误都算失败）。真机验证用临时 `CLAUDE_WEB_DIR` / HOME，别碰用户自己的 `~/.claude-web`。官网 `site/` 有自己的依赖：`npm install` 后跑一次 `npm run site:install`（根的 `typecheck` / `test` 也查 `site/`）。
 - 本机开发 shell 继承了 `CLAUDE_CODE_ENTRYPOINT=sdk-cli`、已装桌面版的 `CLAUDE_WEB_DIST` 、`ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL`、`CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION`、`CLAUDE_WEB_THINKING_DISPLAY`、`CLAUDE_WEB_CONTEXT_WINDOWS` / `CLAUDE_WEB_MODEL_CAPS`、`ELECTRON_RUN_AS_NODE`（会让 `npx electron` 退回 Node，`ui-smoke` 整个跑不起来），测指纹 / 自己起 server / 跑 `npm test`（`session-runner.test.ts` 会挂三条）/ `ui-smoke` 时 `env -u` 掉。还有 `CLAUDE_WEB_ENGINES`、`CLAUDE_WEB_SIDECARS`、`ANTHROPIC_BASE_URL` 等，最省事是全去掉：`env $(env | cut -d= -f1 | grep -E '^(CLAUDE|ANTHROPIC|ELECTRON_RUN_AS_NODE)' | sed 's/^/-u /') npm test`。
-- 提交身份固定 `ypyik0669`；应用发版的步骤在 `macos-ci` 里。
+- 提交身份固定 `PGshen`（就用本仓库 `.git/config` 里的，别用 `-c` 覆盖）；应用发版的步骤在 `macos-ci` 里。
 
 ## 笔记索引
 

@@ -21,7 +21,7 @@ const SAMPLE = [
   '',
   '**English** · [简体中文](CHANGELOG.zh-CN.md)',
   '',
-  'Installers are on the [Releases](https://github.com/ypyik0669/claude-web/releases) page.',
+  'Installers are on the [Releases](https://github.com/PGshen/claude-web/releases) page.',
   '',
   '## [0.3.1] — 2026-10-21',
   '',
@@ -37,8 +37,8 @@ describe('changelogBody', () => {
   });
   it('points repo-relative links at GitHub and leaves the others', () => {
     const out = changelogBody(SAMPLE);
-    expect(out).toContain('(https://github.com/ypyik0669/claude-web/blob/main/docs/notes/gateway.md)');
-    expect(out).toContain('(https://github.com/ypyik0669/claude-web/releases)');
+    expect(out).toContain('(https://github.com/PGshen/claude-web/blob/main/docs/notes/gateway.md)');
+    expect(out).toContain('(https://github.com/PGshen/claude-web/releases)');
     expect(out).toContain('(#fixed)');
   });
   it('drops the Chinese file\'s language line too', () => {

@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.4.6",
   "license": "MIT",
-  "repository": "github:ypyik0669/claude-web",
+  "repository": "github:PGshen/claude-web",
   "type": "module",
   "main": "desktop/dist/main.js",
   "workspaces": [

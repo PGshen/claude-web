@@ -79,7 +79,7 @@ const overlayDefault = (dark: boolean) => (process.platform === 'win32' ? '#0000
 let gpuCrashes = 0;
 /** What the renderer's update prompt and settings page show (web: features/update/model.ts). */
 type UpdateState = { status: string; mode: UpdateMode; version?: string; percent?: number; error?: string; notes?: string; required?: boolean; url?: string; page?: string; why?: string };
-const UPDATE_REPO = 'ypyik0669/claude-web'; // electron-builder.yml `publish`
+const UPDATE_REPO = 'PGshen/claude-web'; // electron-builder.yml `publish`
 /** The .app this Mac app runs from, and why it cannot replace it (null: it can; see mac-update.ts). */
 const macApp = isMac ? macBundle(process.execPath) : null;
 const macBlock: MacBlocker | null = isMac ? macSelfUpdateBlocker({ packaged: app.isPackaged, bundle: macApp, writable: canWrite(macApp) }) : null;

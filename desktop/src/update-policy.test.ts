@@ -141,10 +141,10 @@ describe('release notes', () => {
 });
 
 describe('where a build that cannot update itself downloads from', () => {
-  const repo = 'ypyik0669/claude-web';
+  const repo = 'PGshen/claude-web';
   it('its own kind of file, for this machine', () => {
-    expect(manualDownloadUrl({ repo, version: '0.1.3', platform: 'darwin', arch: 'arm64' })).toBe('https://github.com/ypyik0669/claude-web/releases/download/v0.1.3/ClaudeWeb-0.1.3-mac-arm64.dmg');
-    expect(manualDownloadUrl({ repo, version: '0.1.3', platform: 'darwin', arch: 'x64' })).toBe('https://github.com/ypyik0669/claude-web/releases/download/v0.1.3/ClaudeWeb-0.1.3-mac-x64.dmg');
+    expect(manualDownloadUrl({ repo, version: '0.1.3', platform: 'darwin', arch: 'arm64' })).toBe('https://github.com/PGshen/claude-web/releases/download/v0.1.3/ClaudeWeb-0.1.3-mac-arm64.dmg');
+    expect(manualDownloadUrl({ repo, version: '0.1.3', platform: 'darwin', arch: 'x64' })).toBe('https://github.com/PGshen/claude-web/releases/download/v0.1.3/ClaudeWeb-0.1.3-mac-x64.dmg');
     // the Intel build running under Rosetta on Apple Silicon: offer the native one
     expect(manualDownloadUrl({ repo, version: '0.1.3', platform: 'darwin', arch: 'x64', arm64Translated: true })).toMatch(/mac-arm64\.dmg$/);
     expect(manualDownloadUrl({ repo, version: '0.1.3', platform: 'win32', arch: 'x64', portable: true })).toMatch(/\/ClaudeWeb-0\.1\.3-portable\.exe$/);

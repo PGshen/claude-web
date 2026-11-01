@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { siteData, type GhRelease } from '../src/data/releases.ts';
 
 const OUT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../src/data/site-data.json');
-const REPO = 'ypyik0669/claude-web';
+const REPO = 'PGshen/claude-web';
 const headers: Record<string, string> = { accept: 'application/vnd.github+json', 'user-agent': 'claude-web-site' };
 if (process.env.GITHUB_TOKEN) headers.authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
 

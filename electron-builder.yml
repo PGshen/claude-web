@@ -5,7 +5,7 @@ directories:
   buildResources: desktop/build
 publish:
   provider: github
-  owner: ypyik0669
+  owner: PGshen
   repo: claude-web
 extraMetadata:
   main: desktop/dist/main.js

@@ -11,7 +11,7 @@ const { execFileSync } = require('node:child_process');
 const media = require('./lib/media-encode.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
-const REPO = 'ypyik0669/claude-web';
+const REPO = 'PGshen/claude-web';
 const TAG = 'site-media';
 const NAME = /^[a-z0-9-]+\.(en|zh)((-sm)?\.(webm|mp4)|\.webp)$/;
 
