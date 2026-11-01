@@ -11,6 +11,7 @@ vendor/sidecars/*
 vendor/engines/*
 !vendor/engines/.gitkeep
 *.log
+.run/
 hello.txt
 color.txt
 .superpowers/

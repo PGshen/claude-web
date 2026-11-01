@@ -10,6 +10,7 @@ npm install
 npm run build        # 构建 web/dist
 npm start            # http://127.0.0.1:3090
 npm run dev          # 开发：server tsx watch + vite :5173（代理 /ws 到 3090）
+make start           # 后台跑（还有 stop / restart / status / logs；pid 和日志在 .run/）
 ```
 
 ## 笔记怎么用

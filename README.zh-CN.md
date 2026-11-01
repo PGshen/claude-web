@@ -97,6 +97,8 @@ npm start
 
 然后浏览器打开 <http://127.0.0.1:3090>。Windows 上也可以直接双击仓库里的 `启动.cmd`。
 
+macOS 和 Linux 上也可以放到后台跑：`make start`、`make stop`、`make restart`、`make status`、`make logs`（换端口用 `make start PORT=3100`；pid 和日志在 `.run/`）。
+
 ### 桌面版（自己打包）
 
 ```bash

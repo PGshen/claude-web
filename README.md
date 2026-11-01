@@ -97,6 +97,8 @@ npm start
 
 Then open <http://127.0.0.1:3090> in your browser. On Windows you can also just double-click `启动.cmd` in the repo (the Windows launcher script; its file name is in Chinese).
 
+On macOS and Linux you can run it in the background instead: `make start`, `make stop`, `make restart`, `make status`, `make logs` (`make start PORT=3100` for another port; the pid and log are in `.run/`).
+
 ### Desktop app (build it yourself)
 
 ```bash
