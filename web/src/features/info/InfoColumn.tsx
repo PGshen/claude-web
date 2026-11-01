@@ -16,8 +16,9 @@ import { openReview } from '@/features/workbench/right-panel';
 import { useRepoContext } from '@/features/workbench/repo-context';
 import { openExtensions } from '@/features/extensions/state';
 import { useContextUsage } from '@/features/composer/ContextMeter';
+import { askPeek, usePeeks } from './peek';
 import './info.css';
-import { connectorSummary, contextBreakdown, contextTitle, ctxCanRefresh, ctxLive, fmtTokens, moveCard, normInfoLayout, nudgeCard, toggleCard, type CtxBreakdown, type InfoCard, type InfoLayout } from './info-model';
+import { connectorSummary, contextBreakdown, contextTitle, ctxCanRefresh, ctxLive, fmtTokens, moveCard, normInfoLayout, nudgeCard, peekAsk, toggleCard, withTranscriptMessages, type CtxBreakdown, type InfoCard, type InfoLayout } from './info-model';
 
 const SETTING = 'ui.infoCards';
 
@@ -33,6 +34,7 @@ export function InfoColumn({ sessionId }: { sessionId: string }) {
   const titles: Record<InfoCard, string> = { env: tr('环境'), context: tr('上下文'), connectors: tr('连接器'), changes: tr('改动'), background: tr('后台任务'), pins: tr('钉住的回复') };
   // 钉住 is there once a reply is pinned
   const pins = useStore((s) => s.sessionMeta[sessionId]?.pinnedMsgs?.length ?? 0);
+  usePeekOnOpen(sessionId, !layout.collapsed.includes('connectors'), !layout.collapsed.includes('context'));
   return (
     <aside className="info-col" aria-label={tr('对话信息')}>
       {layout.order.filter((card) => card !== 'pins' || pins > 0).map((card) => (
@@ -64,6 +66,31 @@ export function InfoColumn({ sessionId }: { sessionId: string }) {
   );
 }
 
+/**
+ * A conversation with no process: what its unfolded cards show is asked for as it opens, not at its first send. After a
+ * moment, so clicking through the list starts nothing; a folded context card asks no count (that part goes to the API).
+ */
+function usePeekOnOpen(sessionId: string, connectors: boolean, context: boolean) {
+  const state = useStore((s) => s.open[sessionId]?.state);
+  const cwd = useStore((s) => s.open[sessionId]?.cwd);
+  const liveMcp = useStore((s) => !!s.open[sessionId]?.info?.mcpServers);
+  const peek = usePeeks((s) => s.bySession[sessionId]);
+  useEffect(() => {
+    const ask = peekAsk({ state, cwd, liveMcp, peek, now: Date.now() }, { connectors, context });
+    if (!ask) return;
+    const t = setTimeout(() => void askPeek(sessionId, ask.context), PEEK_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [sessionId, state, cwd, liveMcp, peek, connectors, context]);
+}
+const PEEK_DELAY_MS = 400;
+
+/** The connectors a card has to show: what the process said, or for one with no process what a peek said. */
+function useConnectors(sessionId: string) {
+  const live = useStore((s) => s.open[sessionId]?.info?.mcpServers);
+  const peek = usePeeks((s) => s.bySession[sessionId]?.mcpServers);
+  return (live ?? peek) as { name: string; status?: string }[] | undefined;
+}
+
 // ---------- the value on a card's title row (what a folded card still says) ----------
 
 /**
@@ -82,7 +109,7 @@ function CardSummary({ card, sessionId }: { card: InfoCard; sessionId: string })
   const o = useStore((s) => s.open[sessionId]);
   const cu = useContextUsage(sessionId);
   const stat = useMemo(() => (o ? sessionDiffStat(o.conv.items) : null), [o?.version]);
-  const conns = connectorSummary(o?.info?.mcpServers as any);
+  const conns = connectorSummary(useConnectors(sessionId) as any);
   const bg = useBackground((s) => s.sessions[sessionId]);
   const running = bg?.tasks.filter((t) => t.status === 'running').length ?? 0;
   if (card === 'context') return cu ? <><span>{cu.percentage}%</span><span className="ic-meter"><i style={{ width: `${Math.min(100, cu.percentage)}%` }} /></span></> : null;
@@ -177,9 +204,15 @@ const ctxCache = new Map<string, { b: CtxBreakdown; at: number }>();
 function ContextCard({ sessionId }: { sessionId: string }) {
   const state = useStore((s) => s.open[sessionId]?.state);
   const live = ctxLive(state);
-  const [data, setData] = useState(() => ctxCache.get(sessionId) ?? null);
-  const [busy, setBusy] = useState(false);
+  const peek = usePeeks((s) => s.bySession[sessionId]);
+  // the peek's count has no messages: the size the last answer reports says how much they are
+  const used = useContextUsage(sessionId)?.totalTokens;
+  const peeked = useMemo(() => (peek?.context ? contextBreakdown(withTranscriptMessages(peek.context, used)) : null), [peek?.context, used]);
+  const [cached, setData] = useState(() => ctxCache.get(sessionId) ?? null);
+  const [counting, setBusy] = useState(false);
   const [err, setErr] = useState(false);
+  const data = !live && peeked && peek ? { b: peeked, at: peek.at } : cached;
+  const busy = live ? counting : !!peek?.busy;
   // the conversation the card shows now: an answer for one it has left is cached, not shown
   const shown = useRef(sessionId);
   shown.current = sessionId;
@@ -201,7 +234,7 @@ function ContextCard({ sessionId }: { sessionId: string }) {
   useEffect(() => { setData(ctxCache.get(sessionId) ?? null); setErr(false); setBusy(false); if (live) load(); }, [sessionId, live]);
   const [, tick] = useState(0);
   useEffect(() => { const t = setInterval(() => tick((n) => n + 1), 30_000); return () => clearInterval(t); }, []);
-  if (!data) return <div className="ic-dim">{!live ? tr('对话开着时才有明细') : err ? tr('这个对话的 agent 不提供明细') : tr('加载中…')}</div>;
+  if (!data) return <div className="ic-dim">{live ? (err ? tr('这个对话的 agent 不提供明细') : tr('加载中…')) : peek?.none ? tr('对话开着时才有明细') : peek?.failed ? tr('暂时取不到明细') : tr('加载中…')}</div>;
   const { b } = data;
   const mins = Math.floor((Date.now() - data.at) / 60_000);
   return (
@@ -218,7 +251,8 @@ function ContextCard({ sessionId }: { sessionId: string }) {
       <CtxList title={tr('MCP 工具')} rows={b.mcpTools.map((t) => [t.name.replace(/^mcp__/, ''), t.tokens])} />
       <CtxList title={tr('记忆文件')} rows={b.memoryFiles.map((m) => [basename(m.path), m.tokens])} />
       <CtxList title={tr('自定义子代理')} rows={b.agents.map((a) => [a.name, a.tokens])} />
-      <div className="ic-dim ctx-foot">{busy ? tr('更新中…') : mins < 1 ? tr('刚刚更新') : tr('{n} 分钟前更新', { n: mins })} {ctxCanRefresh(state, busy) && <button className="link" data-act="ctx-refresh" onClick={load}>{tr('刷新')}</button>}</div>
+      {b.estimated && <div className="ic-dim ctx-foot">{tr('消息部分按上一轮估')}</div>}
+      <div className="ic-dim ctx-foot">{busy ? tr('更新中…') : mins < 1 ? tr('刚刚更新') : tr('{n} 分钟前更新', { n: mins })} {ctxCanRefresh(state, busy) && <button className="link" data-act="ctx-refresh" onClick={() => { if (live) load(); else void askPeek(sessionId, true); }}>{tr('刷新')}</button>}</div>
     </div>
   );
 }
@@ -239,11 +273,13 @@ function CtxList({ title, rows }: { title: string; rows: [string, number][] }) {
 const STATUS: Record<string, () => string> = { connected: () => tr('已连接'), failed: () => tr('连不上'), 'needs-auth': () => tr('要登录'), pending: () => tr('连接中'), disabled: () => tr('已关') };
 
 function ConnectorsCard({ sessionId }: { sessionId: string }) {
-  const servers = useStore((s) => s.open[sessionId]?.info?.mcpServers) as { name: string; status?: string }[] | undefined;
+  const servers = useConnectors(sessionId);
   const { rows } = connectorSummary(servers);
+  const peek = usePeeks((s) => s.bySession[sessionId]);
+  const asking = useStore((s) => { const o = s.open[sessionId]; return !!o && !o.info?.mcpServers && !ctxLive(o.state); });
   return (
     <>
-      {!rows.length && <div className="ic-dim">{tr('这个对话没有连接器')}</div>}
+      {!rows.length && <div className="ic-dim">{asking && !peek?.mcpServers && !peek?.none ? (peek?.failed ? tr('暂时取不到连接器') : tr('加载中…')) : tr('这个对话没有连接器')}</div>}
       {rows.map((r) => (
         <div key={r.name} className="ic-row"><Icon name="mcp" size={13} /><span className="ic-row-t">{r.name}</span><span className={clsx('ic-st', (r.status === 'failed' || r.status === 'needs-auth') && 'warn')}>{(STATUS[r.status] ?? (() => r.status))()}</span></div>
       ))}

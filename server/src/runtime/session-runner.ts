@@ -26,7 +26,7 @@ import { cafePluginDir } from '../characters/tools.js';
 import { asciiPluginDir } from '../themes/tools.js';
 import { computerAllowedTools, computerClaudeMcpServer } from '../computer/launcher.js';
 import { markUnknownCost } from '../usage/pricing.js';
-import type { AttachmentRef, EffortLevel, ModelInfo, OpenSessionParams, PermissionMode, PermissionRequestEvent, PermissionResponse, Provider, RunnerState, SessionFeatures, SessionInfoSnapshot, SideTurn } from '../protocol.js';
+import type { AttachmentRef, EffortLevel, ModelInfo, OpenSessionParams, PermissionMode, PermissionRequestEvent, PermissionResponse, Provider, RunnerState, SessionFeatures, SessionInfoSnapshot, SessionPeek, SideTurn } from '../protocol.js';
 import { getLocale, tr } from '../i18n/index.js';
 import { thinkingLanguageFor, thinkingLanguagePrompt } from './thinking-language.js';
 import { subagentPolicyPrompt } from './subagent-policy.js';
@@ -37,6 +37,8 @@ import { PREVIEW_ALLOWED, PREVIEW_SERVER, previewEnabled, previewMcpServer, veri
 
 /** A conversation above this share of the next model's window is compacted before the switch. */
 const FIT_SHARE = 0.8;
+/** how long a peek waits for the connectors still connecting */
+const PEEK_MCP_WAIT_MS = 6000;
 /** the official binary's lowest CLAUDE_CODE_AUTO_COMPACT_WINDOW (it reads a smaller one as this: phase 27, measured) */
 const OFFICIAL_COMPACT_FLOOR = 100_000;
 
@@ -223,8 +225,11 @@ export class SessionRunner extends EventEmitter {
   private projectInstructions = '';
   /** IM / a scheduled task / the orchestra drives this run: its replies are read elsewhere first — no ```nodegraph hint */
   private drivenBy: OpenSessionParams['drivenBy'];
-  constructor(params: OpenSessionParams, provider?: SessionProvider, opts: { thinkingLanguage?: string; account?: AccountPrefs; additionalDirectories?: string[]; projectInstructions?: string } = {}) {
+  /** Lives to answer `peek()`: runs beside the conversation, not as it (see `peek`). */
+  private peeking = false;
+  constructor(params: OpenSessionParams, provider?: SessionProvider, opts: { thinkingLanguage?: string; account?: AccountPrefs; additionalDirectories?: string[]; projectInstructions?: string; peek?: boolean } = {}) {
     super();
+    this.peeking = !!opts.peek;
     this.projectInstructions = opts.projectInstructions ?? '';
     this.extraDirs = (opts.additionalDirectories ?? []).filter((d) => typeof d === 'string' && !!d);
     this.wsl = params.env?.kind === 'wsl' ? { distro: params.env.distro } : null;
@@ -261,8 +266,8 @@ export class SessionRunner extends EventEmitter {
     const mirror = !!params.resumeEntries?.length;
     // an id that never ran a turn has nothing to resume: start a new conversation on the same id
     this.hasTranscript = !!params.sessionId && (isFork || mirror || hasClaudeTranscript(params.sessionId));
-    const extra: Partial<Options> = this.hasTranscript ? { resume: params.sessionId, forkSession: isFork, resumeSessionAt: params.resumeAt } : { sessionId: this.sessionId };
-    if (mirror && params.resumeEntries) {
+    const extra: Partial<Options> = this.peeking ? { persistSession: false } : this.hasTranscript ? { resume: params.sessionId, forkSession: isFork, resumeSessionAt: params.resumeAt } : { sessionId: this.sessionId };
+    if (mirror && params.resumeEntries && !this.peeking) {
       const entries = params.resumeEntries;
       extra.resume = this.sessionId;
       extra.forkSession = false;
@@ -451,9 +456,10 @@ export class SessionRunner extends EventEmitter {
     // 自动压缩 point the user set for the account over a CLAUDE_CODE_AUTO_COMPACT_WINDOW in their settings.json (A7)
     const ours: Record<string, string> = { ...(sub ? { CLAUDE_CODE_SUBAGENT_MODEL: sub, CLAUDE_CODE_SUBAGENT_MODEL_FORCE: '1' } : {}), ...(privacyOwn && fenv.ANTHROPIC_BASE_URL ? { ANTHROPIC_BASE_URL: fenv.ANTHROPIC_BASE_URL } : {}), ...(userCompact && fenv.CLAUDE_CODE_AUTO_COMPACT_WINDOW ? { CLAUDE_CODE_AUTO_COMPACT_WINDOW: fenv.CLAUDE_CODE_AUTO_COMPACT_WINDOW } : {}) };
     const override = this.provider || this.account ? settingsOverride(fenv, this.cwd) : ownOverride(ours, this.cwd);
-    if (override) {
+    if (override || this.peeking) {
       try {
-        this.nextFlag = writeFlagSettings(override);
+        // a peek is nobody's session: the user's SessionStart hooks do not run because a conversation was looked at
+        this.nextFlag = writeFlagSettings(override ?? {}, undefined, this.peeking ? { disableAllHooks: true } : undefined);
       } catch (e) {
         console.warn(`[session ${this.sessionId.slice(0, 8)}] could not write the --settings file (the user's settings.json env stays on top): ${(e as Error).message}`);
       }
@@ -1289,6 +1295,30 @@ export class SessionRunner extends EventEmitter {
 
   async contextUsage(detail: 'summary' | 'full' = 'summary') {
     return (this.q as any)?.getContextUsage?.({ detail });
+  }
+
+  /**
+   * The connectors and the count of a conversation with no process, for the 信息栏. Not by resuming it: a `--resume`
+   * with no prompt appends to the transcript when it exits (a `cost-state` of 0, which the next resume reads back as
+   * the totals; the new mtime moves the conversation up the list), runs the user's hooks, and counts no messages
+   * anyway until a turn starts (real binary, 2026-11-01). So a process of its own with the conversation's folder,
+   * model and settings, that saves nothing: `persistSession: false`, hooks off. The window adds the messages
+   * (info-model `withTranscriptMessages`).
+   */
+  async peek(context: boolean, mcpWaitMs = PEEK_MCP_WAIT_MS): Promise<SessionPeek> {
+    if (this.state === 'starting') await new Promise<void>((resolve) => this.once('state', () => resolve()));
+    if (this.state !== 'idle' || !this.q) throw new Error(this.info.error || 'peek: the process did not start');
+    // a stdio server is still `pending` right after initialize: give them a moment, then say what they are
+    const until = Date.now() + mcpWaitMs;
+    let mcp = await this.q.mcpServerStatus();
+    while (mcp.some((m) => m.status === 'pending') && Date.now() < until) {
+      await new Promise((r) => setTimeout(r, 150));
+      mcp = await this.q.mcpServerStatus();
+    }
+    return {
+      mcpServers: mcp.map((m) => ({ name: m.name, status: m.status, error: m.error, tools: m.tools })),
+      ...(context ? { context: await this.contextUsage('full') } : {}),
+    };
   }
 
   /**

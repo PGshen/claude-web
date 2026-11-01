@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { SessionRunner, type AccountPrefs } from './session-runner.js';
 import { familyWindows } from '../models/account-window.js';
-import type { AgentKind, OpenSessionParams, PermissionMode, Provider, RunnerState } from '../protocol.js';
+import type { AgentKind, OpenSessionParams, PermissionMode, Provider, RunnerState, SessionPeek } from '../protocol.js';
 import type { ProviderService } from '../providers/service.js';
 import { proxy } from '../net/proxy.js';
 import { withExplanation } from '../errors/explain.js';
@@ -33,6 +33,9 @@ export function idleTtlFor(p: Pick<Provider, 'type' | 'cache1h'> | undefined): n
  * recently used one is closed anyway (it resumes on the next message, paying one uncached turn).
  */
 export const MAX_IDLE_CLAUDE = 12;
+
+/** a peek's process, start to answer (count_tokens over a slow relay included); after this the card says it could not */
+const PEEK_TIMEOUT_MS = 45_000;
 
 /** meta.json saves this close together pass the account's picks on once (RunnerPool.accountPrefsSaved) */
 export const ACCOUNT_PREFS_DEBOUNCE_MS = 400;
@@ -178,19 +181,8 @@ export class RunnerPool extends EventEmitter {
     return actual === params.expectMode ? null : actual;
   }
 
-  open(params: OpenSessionParams): SessionRunner {
-    if (params.expectMode !== undefined) { params = { ...params }; delete params.expectMode; }
-    if (!params.fork) this.assertWritable(params.sessionId);
-    void proxy.refresh(); // IM / schedules / goals come straight here: a stale look is redone for the next start (net/proxy.ts)
-    if (params.sessionId && !params.fork && !params.resumeAt) {
-      const existing = this.runners.get(params.sessionId);
-      if (existing && existing.state !== 'closed' && existing.state !== 'error') return existing;
-      if (existing) {
-        this.runners.delete(params.sessionId);
-        // an errored runner may still hold a child process / input queue; its late 'closed' is filtered below
-        void existing.close().catch(() => { /* already dead */ });
-      }
-    }
+  /** What a conversation's process starts with, whoever starts it. Reads only: `open` records its side of this afterwards. */
+  private prepare(params: OpenSessionParams) {
     // WSL (spec E5): the conversation's machine is its own — whoever reopens it (a window, IM, a schedule) starts it
     // in the same distro; there it runs the distro's own Claude Code login, never a provider of this machine
     const recordedEnv = params.sessionId ? this.providers.meta?.sessionMeta(params.sessionId).env : undefined;
@@ -227,11 +219,59 @@ export class RunnerPool extends EventEmitter {
     // a conversation in a project's main folder works in the project's extra folders too (stage C2)
     const proj = this.projectExtras(params);
     const extra = [...this.extraFolders(params.cwd), ...(proj.filesDir ? [proj.filesDir] : [])];
-    // the project's instructions go into NEW conversations (spec F2) and stay theirs (recorded below): a resumed or
+    // the project's instructions go into NEW conversations (spec F2) and stay theirs (recorded in `open`): a resumed or
     // forked one runs with what it started with — a conversation older than the project never gets them, an edit
     // of the instructions changes no conversation already going
     const projInstr = params.sessionId ? (m?.sessionMeta(params.sessionId).projectInstructions ?? '') : proj.instructions;
-    const r = new SessionRunner(params, sp, { thinkingLanguage, ...(account ? { account } : {}), ...(extra.length ? { additionalDirectories: extra } : {}), ...(projInstr ? { projectInstructions: projInstr } : {}) });
+    const opts = { thinkingLanguage, ...(account ? { account } : {}), ...(extra.length ? { additionalDirectories: extra } : {}), ...(projInstr ? { projectInstructions: projInstr } : {}) };
+    return { params, runEnv, chosen, saidMode, chatOnly, explicit, projInstr, sp, opts };
+  }
+
+  /** the last peek in line: one at a time, clicking through conversations must not start a process each at once */
+  private peeks: Promise<unknown> = Promise.resolve();
+
+  /**
+   * 信息栏 of a conversation with no process (session.peek): its connectors and, with `context`, its count, from a
+   * process that lives for this one question and is not the conversation's. Never kept, never in `runners`, nothing recorded.
+   */
+  peek(params: OpenSessionParams, context: boolean): Promise<SessionPeek> {
+    const run = this.peeks.then(() => this.peekNow(params, context));
+    this.peeks = run.catch(() => { /* said to the one who asked */ });
+    return run;
+  }
+
+  private async peekNow(params: OpenSessionParams, context: boolean): Promise<SessionPeek> {
+    const { params: p, sp, opts } = this.prepare({ ...params, fork: false, resumeAt: undefined });
+    const r = new SessionRunner(p, sp, { ...opts, peek: true });
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      return await Promise.race([
+        r.peek(context),
+        new Promise<never>((_, rej) => { timer = setTimeout(() => rej(new Error('peek timed out')), PEEK_TIMEOUT_MS); }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+      void r.close().catch(() => { /* already dead */ });
+    }
+  }
+
+  open(params: OpenSessionParams): SessionRunner {
+    if (params.expectMode !== undefined) { params = { ...params }; delete params.expectMode; }
+    if (!params.fork) this.assertWritable(params.sessionId);
+    void proxy.refresh(); // IM / schedules / goals come straight here: a stale look is redone for the next start (net/proxy.ts)
+    if (params.sessionId && !params.fork && !params.resumeAt) {
+      const existing = this.runners.get(params.sessionId);
+      if (existing && existing.state !== 'closed' && existing.state !== 'error') return existing;
+      if (existing) {
+        this.runners.delete(params.sessionId);
+        // an errored runner may still hold a child process / input queue; its late 'closed' is filtered below
+        void existing.close().catch(() => { /* already dead */ });
+      }
+    }
+    const { params: prepared, runEnv, chosen, saidMode, chatOnly, explicit, projInstr, sp, opts } = this.prepare(params);
+    params = prepared;
+    const m = this.providers.meta;
+    const r = new SessionRunner(params, sp, opts);
     // a pick is the conversation's from then on (a new one: under the id it was given; a fork gets its id at init)
     if (explicit !== undefined && m && !params.fork && !params.resumeAt) {
       void m.setSessionMeta(r.sessionId, { subagent: { providerId: providerKey(params.providerId), model: explicit } }).catch(() => { /* in memory; the next save persists it */ });

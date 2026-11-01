@@ -49,7 +49,7 @@ describe('planRoute', () => {
     const routed: ClientRequest[] = [
       { kind: 'feedback.list', sessionId: 'peer_b1~s' }, { kind: 'feedback.set', sessionId: 'peer_b1~s', messageId: 'm', rating: 'up' },
       { kind: 'ledger.list', sessionId: 'peer_b1~s' }, { kind: 'session.setMeta', sessionId: 'peer_b1~s', patch: {} },
-      { kind: 'library.read', sessionId: 'peer_b1~s' }, { kind: 'session.contextUsage', sessionId: 'peer_b1~s' },
+      { kind: 'library.read', sessionId: 'peer_b1~s' }, { kind: 'session.contextUsage', sessionId: 'peer_b1~s' }, { kind: 'session.peek', params: { sessionId: 'peer_b1~s', cwd: '/p' } },
       { kind: 'session.stopTask', sessionId: 'peer_b1~s', taskId: 't' }, { kind: 'transcript.subagent', sessionId: 'peer_b1~s', agentId: 'a' },
       { kind: 'session.setEffort', sessionId: 'peer_b1~s', effort: 'high' }, { kind: 'session.setUltracode', sessionId: 'peer_b1~s', on: true },
       { kind: 'background.history', sessionId: 'peer_b1~s' }, { kind: 'background.run', sessionId: 'peer_b1~s', runId: 'wf_1' },

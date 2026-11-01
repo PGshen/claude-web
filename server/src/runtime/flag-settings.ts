@@ -18,11 +18,11 @@ export function flagSettingsDir(): string {
 
 let swept = false;
 
-export function writeFlagSettings(env: Record<string, string>, dir = flagSettingsDir()): FlagSettings {
+export function writeFlagSettings(env: Record<string, string>, dir = flagSettingsDir(), more: Record<string, unknown> = {}): FlagSettings {
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   if (!swept) { swept = true; sweepFlagSettings(dir); }
   const file = path.join(dir, `${process.pid}-${randomUUID()}.json`);
-  fs.writeFileSync(file, JSON.stringify({ env }), { mode: 0o600 });
+  fs.writeFileSync(file, JSON.stringify({ env, ...more }), { mode: 0o600 });
   let done = false;
   return {
     file,

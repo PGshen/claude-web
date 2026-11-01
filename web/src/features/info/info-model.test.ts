@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { connectorSummary, contextBreakdown, contextTitle, ctxCanRefresh, ctxLive, fmtTokens, fmtWindow, moveCard, normInfoLayout, nudgeCard, toggleCard, toneOf } from './info-model';
+import { connectorSummary, contextBreakdown, contextTitle, ctxCanRefresh, ctxLive, fmtTokens, fmtWindow, moveCard, normInfoLayout, nudgeCard, peekAsk, PEEK_FRESH_MS, toggleCard, toneOf, withTranscriptMessages } from './info-model';
 
 describe('上下文 card title (A7)', () => {
   it('a window: whole K, M from 1M (a decimal only when it is not whole)', () => {
@@ -125,15 +125,62 @@ describe('context colours (A5)', () => {
 
 // 2026-10-24 review M3: 刷新 on a closed conversation's last count asked the engine, failed and said nothing
 describe('context card: when it can count', () => {
-  it('only a conversation running here (idle / running / waiting) is counted or offers 刷新', () => {
+  it('only a conversation running here (idle / running / waiting) counts through its own process', () => {
     for (const s of ['idle', 'running', 'waiting']) expect(ctxLive(s)).toBe(true);
     for (const s of ['history', 'closed', 'error', 'starting', undefined]) expect(ctxLive(s)).toBe(false);
   });
-  it('刷新 shows only when live and not already counting', () => {
+  it('刷新 shows unless counting or starting: a conversation with no process asks a peek', () => {
     expect(ctxCanRefresh('idle', false)).toBe(true);
     expect(ctxCanRefresh('idle', true)).toBe(false);
-    expect(ctxCanRefresh('history', false)).toBe(false);
-    expect(ctxCanRefresh('closed', false)).toBe(false);
+    expect(ctxCanRefresh('history', false)).toBe(true);
+    expect(ctxCanRefresh('closed', false)).toBe(true);
+    expect(ctxCanRefresh('history', true)).toBe(false);
+    expect(ctxCanRefresh('starting', false)).toBe(false);
     expect(ctxCanRefresh(undefined, false)).toBe(false);
+  });
+});
+
+describe('a conversation with no process (session.peek)', () => {
+  const base = { state: 'history', cwd: '/p', liveMcp: false, peek: undefined, now: 1_000_000_000 };
+  const both = { connectors: true, context: true };
+  it('asks as it opens, with the count only when the context card is open', () => {
+    expect(peekAsk(base, both)).toEqual({ context: true });
+    expect(peekAsk(base, { connectors: true, context: false })).toEqual({ context: false });
+    expect(peekAsk({ ...base, state: 'closed' }, both)).toEqual({ context: true });
+    expect(peekAsk(base, { connectors: false, context: false })).toBeNull();
+  });
+  it('not a running or starting one, not before its folder is known, not while one is asked', () => {
+    for (const state of ['idle', 'running', 'waiting', 'starting', undefined]) expect(peekAsk({ ...base, state }, both)).toBeNull();
+    expect(peekAsk({ ...base, cwd: '' }, both)).toBeNull();
+    expect(peekAsk({ ...base, peek: { at: 0, busy: true } }, both)).toBeNull();
+  });
+  it('one answer lasts: unfolding the context card asks only for what is missing; a failure is not retried in a loop', () => {
+    const at = base.now - 1000;
+    const conn = { at, mcpServers: [] };
+    expect(peekAsk({ ...base, peek: conn }, { connectors: true, context: false })).toBeNull();
+    expect(peekAsk({ ...base, peek: conn }, both)).toEqual({ context: true });
+    expect(peekAsk({ ...base, peek: { ...conn, context: {} } }, both)).toBeNull();
+    expect(peekAsk({ ...base, peek: { at, failed: true } }, both)).toBeNull();
+    expect(peekAsk({ ...base, peek: { at, none: true } }, both)).toBeNull();
+    expect(peekAsk({ ...base, peek: { ...conn, context: {}, at: base.now - PEEK_FRESH_MS - 1 } }, both)).toEqual({ context: true });
+  });
+  it('a closed one that still has its process\'s connector list asks only for the count', () => {
+    expect(peekAsk({ ...base, state: 'closed', liveMcp: true }, { connectors: true, context: false })).toBeNull();
+  });
+  it('the messages the peek did not count come out of the free space', () => {
+    const u = { totalTokens: 30_000, rawMaxTokens: 200_000, percentage: 15, categories: [{ name: 'System tools', tokens: 29_978, kind: 'used' }, { name: 'Messages', tokens: 22, kind: 'used' }, { name: 'Free space', tokens: 137_000, kind: 'free' }, { name: 'Autocompact buffer', tokens: 33_000, kind: 'buffer' }] };
+    const b = contextBreakdown(withTranscriptMessages(u, 130_000))!;
+    expect(b.total).toBe(130_000);
+    expect(b.percentage).toBe(65);
+    expect(b.estimated).toBe(true);
+    expect(b.used[0]).toMatchObject({ name: 'Messages', tokens: 100_022, tone: 'messages' });
+    expect(b.free[0].tokens).toBe(37_000);
+    expect(b.buffer[0].tokens).toBe(33_000);
+  });
+  it('a count with no Messages row gets one; no usage, or less than the count: as it is', () => {
+    const u = { totalTokens: 100, rawMaxTokens: 1000, categories: [{ name: 'Free space', tokens: 900 }] };
+    expect(contextBreakdown(withTranscriptMessages(u, 400))!.used).toMatchObject([{ name: 'Messages', tokens: 300 }]);
+    expect(withTranscriptMessages(u, undefined)).toBe(u);
+    expect(withTranscriptMessages(u, 50)).toBe(u);
   });
 });

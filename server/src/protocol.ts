@@ -356,6 +356,12 @@ export type PermissionResponse =
   | { behavior: 'allow'; updatedInput?: Record<string, unknown>; updatedPermissions?: unknown[] }
   | { behavior: 'deny'; message: string; interrupt?: boolean };
 
+/** What a conversation with no process has to say (RunnerPool.peek). `context`: getContextUsage's answer, without the conversation's messages. */
+export interface SessionPeek {
+  mcpServers: NonNullable<SessionInfoSnapshot['mcpServers']>;
+  context?: unknown;
+}
+
 export interface SessionInfoSnapshot {
   sessionId: string;
   /** stage E5: running inside this WSL distro; `dropped` = injected MCP servers that could not start there */
@@ -443,6 +449,8 @@ export type ClientRequest =
   | { kind: 'session.rename'; sessionId: string; title: string }
   | { kind: 'session.delete'; sessionId: string }
   | { kind: 'session.contextUsage'; sessionId: string; detail?: 'summary' | 'full' }
+  /** 信息栏 of a conversation with no process: asked of a process of its own that saves nothing (null: not a Claude conversation) */
+  | { kind: 'session.peek'; params: OpenSessionParams; context?: boolean }
   | { kind: 'feedback.set'; sessionId: string; messageId: string; rating: 'up' | 'down' | null; note?: string }
   | { kind: 'feedback.list'; sessionId: string }
   | { kind: 'drafts.set'; key: string; text: string } // key = sessionId | 'welcome'

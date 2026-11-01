@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { describe, expect, it, vi } from 'vitest';
 
+const peeking = vi.hoisted(() => ({ now: 0, max: 0, runners: [] as any[] }));
 // A stand-in runner: no child process, state driven by the test.
 vi.mock('./session-runner.js', async () => {
   const { EventEmitter } = await import('node:events');
@@ -24,6 +25,7 @@ vi.mock('./session-runner.js', async () => {
       this.info = { sessionId: this.sessionId, providerId: provider?.id };
     }
     async setAccountPrefs(p: any) { this.prefs.push(p); }
+    async peek(context: boolean) { peeking.now++; peeking.max = Math.max(peeking.max, peeking.now); peeking.runners.push(this); await new Promise((r) => setTimeout(r, 5)); peeking.now--; if (this.params.cwd === '/bad') throw new Error('no'); return { mcpServers: [], context }; }
     setState(s: string) {
       this.state = s;
       this.emit('state', s);
@@ -46,6 +48,25 @@ const { RunnerPool, idleTtlFor, MAX_IDLE_CLAUDE, ACCOUNT_PREFS_DEBOUNCE_MS } = a
 const pool = () => new RunnerPool({ forSession: () => undefined } as any);
 
 describe('RunnerPool', () => {
+  it('peek: one at a time, nothing kept or recorded, a failure does not stop the next', async () => {
+    const set = vi.fn(async () => {});
+    const meta = { sessionMeta: () => ({}), settings: () => ({ 'ui.defaultMode': 'plan' }), setSessionMeta: set, workspaces: () => [] };
+    const p = new RunnerPool({ forSession: () => undefined, meta, fits: () => true } as any);
+    peeking.max = 0;
+    peeking.runners.length = 0;
+    const [a, b, c] = await Promise.allSettled([p.peek({ sessionId: 'pk1', cwd: '/x' }, true), p.peek({ sessionId: 'pk2', cwd: '/bad' }, false), p.peek({ sessionId: 'pk3', cwd: '/x' }, false)]);
+    expect(a).toMatchObject({ status: 'fulfilled', value: { context: true } });
+    expect(b.status).toBe('rejected');
+    expect(c.status).toBe('fulfilled');
+    expect(peeking.max).toBe(1);
+    expect(peeking.runners.map((r) => r.opts.peek)).toEqual([true, true, true]);
+    expect(p.list()).toEqual([]);
+    expect(p.get('pk1')).toBeUndefined();
+    expect(set).not.toHaveBeenCalled();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(peeking.runners.every((r) => r.closeCalls === 1)).toBe(true);
+  });
+
   it('a conversation opened in a project folder gets the project’s extra folders (stage C2); elsewhere none', () => {
     const meta = { sessionMeta: () => ({}), settings: () => ({}), setSessionMeta: async () => {}, workspaces: () => [{ id: 'w', path: '/proj', name: 'p', addedAt: 0, order: 0, folders: ['/lib'] }] };
     const p = new RunnerPool({ forSession: () => undefined, meta } as any);

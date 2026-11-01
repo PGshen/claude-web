@@ -1789,3 +1789,40 @@ describe('SessionRunner: 项目说明 (stage F2)', () => {
     await plain.close();
   });
 });
+
+describe('SessionRunner: peek (a conversation with no process)', () => {
+  it('neither resumes nor saves, runs no hooks; says the connectors and the count, then waits out a pending one', async () => {
+    const fs = await import('node:fs');
+    queries.length = 0;
+    const r = new SessionRunner({ sessionId: 'pk-1', cwd: '/x' } as any, undefined, { peek: true });
+    const o = queries[0].options;
+    expect(o.persistSession).toBe(false);
+    expect(o.resume).toBeUndefined();
+    expect(o.sessionId).toBeUndefined();
+    expect(JSON.parse(fs.readFileSync(o.settings, 'utf8')).disableAllHooks).toBe(true);
+    queries[0].mcp = [{ name: 'a', status: 'pending' }];
+    queries[0].usage = { totalTokens: 7 };
+    setTimeout(() => { queries[0].mcp = [{ name: 'a', status: 'connected' }]; }, 40);
+    const said = await r.peek(true);
+    expect(said.mcpServers).toEqual([{ name: 'a', status: 'connected', error: undefined, tools: undefined }]);
+    expect(said.context).toEqual({ totalTokens: 7 });
+    await r.close();
+  });
+  it('no count unless asked; a connector that never connects does not hold the answer', async () => {
+    queries.length = 0;
+    const r = new SessionRunner({ sessionId: 'pk-2', cwd: '/x' } as any, undefined, { peek: true });
+    queries[0].mcp = [{ name: 'a', status: 'pending' }];
+    const said = await r.peek(false, 20);
+    expect(said.mcpServers[0].status).toBe('pending');
+    expect('context' in said).toBe(false);
+    await r.close();
+  });
+  it('a process that fails says so', async () => {
+    queries.length = 0;
+    const r = new SessionRunner({ sessionId: 'pk-3', cwd: '/x' } as any, undefined, { peek: true });
+    queries[0].fail(new Error('boom'));
+    await tick();
+    await expect(r.peek(false)).rejects.toThrow();
+    await r.close();
+  });
+});

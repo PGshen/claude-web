@@ -23,6 +23,11 @@
     **坑：spec 里写的「`model` vs `runtimeModel` 两个窗口不同」不是 333k 的原因**——真正的原因是用户 `~/.claude/settings.json` 的 env `CLAUDE_CODE_AUTO_COMPACT_WINDOW=700000`：
     卡的窗口按 1M 算（不看这个上限），阈值却按它算（700k − 20k − 13k = 667k），buffer = 1M − 667k = 333k（两个名字解析出来都是 1M，和 model / runtimeModel 无关）；真的自动压缩在 650k 触发。查这类数字先看 settings.json 的 env。
     另外 `--ctx-*` 不在对比度测试里（`contrast.test.ts` 只读 tokens.css / styles.css 的主题块）；~~已关的对话卡上还显示缓存和「刷新」，点了静默失败~~——总审查 M3 修了：「刷新」只在对话开着（`info-model` 的 `ctxLive` / `ctxCanRefresh`：idle / running / waiting）且不在数时出现，已关的只显示上次的结果和「N 分钟前更新」。
+- **没在跑的对话也有上下文 / 连接器（`session.peek`，2026-11-01 用户报告：打开对话只写「对话开着时才有明细」「这个对话没有连接器」，发一句才有）**。这两样只有引擎进程答得出，从侧栏打开的对话没有进程。
+  **不能用 `--resume` 不带 prompt 起进程**（真二进制实测）：退出时往 transcript 追加 `atis-latch` / `mode` / `cost-state`（`totalCostUSD: 0`，下次 resume 读回来当累计费用；mtime 一变对话还会跳到列表前面），还跑用户的 SessionStart 钩子，而且第一轮开始前根本不读消息（`getContextUsage` 没有 Messages 这一行）。常驻一个进程也不好：每点一个对话多一个 150–300 MB 的进程，还会把正常对话的进程挤出 `MAX_IDLE_CLAUDE`。
+  做法：`RunnerPool.peek` 起一个**一次性的、不是这个对话的**进程：`new SessionRunner(同一套 prepare() 参数, { peek: true })`，`persistSession: false`、不 resume、flag settings 里 `disableAllHooks`，问完 `mcpServerStatus`（`pending` 最多等 6 s）和要的话 `getContextUsage('full')` 就关；不进 `runners`、不记 meta、一次只跑一个。token 数里缺的消息由前端补：`info-model.withTranscriptMessages` 用上一轮的 usage（`useContextUsage`，和小环同一个数）减去 peek 的总数，算进 Messages、从 Free space 扣，卡片脚注「消息部分按上一轮估」。
+  什么时候问：`peekAsk`（纯函数）+ `InfoColumn.usePeekOnOpen`：对话不在跑（history / closed / error）且卡展开，停留 400 ms 才问（点着路过不起进程）；5 分钟内不重问，失败也不循环；**上下文卡折叠时不数 token**（那部分才发 `count_tokens`，见「上下文小环不问引擎」）。结果在 `peek.ts` 的 `usePeeks`（只在内存）。claude.ai 导出的对话服务端答 null，仍是老文案。`session.peek` 进了联邦路由表。
+  坑：demo 脚本在 Mac 上要 `TMPDIR=$(cd "$TMPDIR" && pwd -P)`，否则 HOME 在 `/var/…`（符号链接），SDK 按 `/private/var/…` 找 transcript，对话是空的。CLI 启动时会删 mtime 超过 30 天的 transcript（`cleanupPeriodDays`），造测试数据别把 mtime 设太旧。
 - 改动卡的「建 PR」是给 Claude 发一句话（提交、推送、`gh pr create`），只在空闲时能点；已有 PR 就是链接（`usePrs`）。
 - 后台任务卡：`useBackground` 里在跑的，秒数每秒走，停止走 `session.stopTask`。
 

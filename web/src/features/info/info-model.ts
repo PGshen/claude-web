@@ -55,6 +55,8 @@ export interface CtxBreakdown {
   mcpTools: { name: string; server: string; tokens: number }[];
   memoryFiles: { path: string; tokens: number }[];
   agents: { name: string; tokens: number }[];
+  /** the messages' share read off the last answer's usage (withTranscriptMessages), not counted */
+  estimated?: boolean;
 }
 
 export type CtxTone = 'messages' | 'tools' | 'mcp' | 'skills' | 'other';
@@ -98,17 +100,51 @@ export function contextBreakdown(u: any): CtxBreakdown | null {
     mcpTools: (u.mcpTools ?? []).map((t: any) => ({ name: String(t.name), server: String(t.serverName ?? ''), tokens: Number(t.tokens) || 0 })),
     memoryFiles: (u.memoryFiles ?? []).map((m: any) => ({ path: String(m.path), tokens: Number(m.tokens) || 0 })),
     agents: (u.agents ?? []).map((a: any) => ({ name: String(a.agentType), tokens: Number(a.tokens) || 0 })),
+    ...(u.messagesEstimated ? { estimated: true } : {}),
   };
 }
 
-/** The context card counts only a conversation running here: the engine does the counting. */
+/**
+ * A peek's count has everything but the conversation (its process never read the transcript). The last answer's usage
+ * says how much the whole context was (`used`, the composer's ring reads the same): what the peek did not count is the
+ * messages, out of the free space. Without a usage, or when it says less, the peek's answer as it is.
+ */
+export function withTranscriptMessages(u: any, used: number | undefined): any {
+  const total = Number(u?.totalTokens ?? 0) || 0;
+  if (!u || !Array.isArray(u.categories) || !used || used <= total) return u;
+  const add = used - total;
+  const isFree = (c: any) => kindOf(c) === 'free';
+  const named = u.categories.some((c: any) => c?.name === 'Messages');
+  const categories = u.categories.map((c: any) => (c?.name === 'Messages' ? { ...c, tokens: (Number(c.tokens) || 0) + add } : isFree(c) ? { ...c, tokens: Math.max(0, (Number(c.tokens) || 0) - add) } : c));
+  if (!named) categories.push({ name: 'Messages', tokens: add, kind: 'used' });
+  const max = Number(u.rawMaxTokens ?? u.maxTokens ?? 0) || 0;
+  return { ...u, categories, totalTokens: used, ...(max ? { percentage: Math.round((used / max) * 100) } : {}), messagesEstimated: true };
+}
+
+/** What the window remembers of a peek (peek.ts). `none`: not a Claude conversation, there is nothing to ask. */
+export interface PeekRecord { at: number; busy?: boolean; failed?: boolean; none?: boolean; mcpServers?: unknown[]; context?: unknown }
+
+/** A peek starts a process and (for the count) asks the API: not again for the same conversation within this long. */
+export const PEEK_FRESH_MS = 5 * 60_000;
+
+/** Whether the open cards need a peek now, and with the count or not (the count is the part that asks the API). */
+export function peekAsk(o: { state: string | undefined; cwd: string | undefined; liveMcp: boolean; peek: PeekRecord | undefined; now: number }, want: { connectors: boolean; context: boolean }): { context: boolean } | null {
+  if (!o.state || o.state === 'starting' || ctxLive(o.state) || !o.cwd || o.peek?.busy) return null;
+  const fresh = o.peek && o.now - o.peek.at < PEEK_FRESH_MS ? o.peek : undefined;
+  if (fresh?.failed || fresh?.none) return null;
+  const connectors = want.connectors && !o.liveMcp && !fresh?.mcpServers;
+  const context = want.context && !fresh?.context;
+  return connectors || context ? { context: want.context } : null;
+}
+
+/** The context card counts a conversation running here itself: the engine does the counting. */
 export function ctxLive(state: string | undefined): boolean {
   return state === 'idle' || state === 'running' || state === 'waiting';
 }
 
-/** 刷新 under a count: not for a closed conversation's last count (it asked the engine, failed, said nothing — review M3). */
+/** 刷新 under a count: a running conversation asks its process, one with none asks a peek; not while one is starting. */
 export function ctxCanRefresh(state: string | undefined, busy: boolean): boolean {
-  return ctxLive(state) && !busy;
+  return !!state && state !== 'starting' && !busy;
 }
 
 /** 19.6k / 1.2M / 300 */

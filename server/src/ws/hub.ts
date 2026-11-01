@@ -150,7 +150,7 @@ export interface Services {
 }
 
 /** Requests after which something connects out: they wait for a fresh look at the proxy. (`web.search` waits inside WebService, like the agents' searches.) */
-const GOES_OUT = new Set<string>(['session.open', 'session.send', 'session.setProvider', 'providers.probe', 'providers.refreshModels', 'import.run', 'terminal.open', 'im.set', 'im.test', 'mcp.registry', 'sync.remote.test', 'sync.remote.push', 'sync.remote.pull']);
+const GOES_OUT = new Set<string>(['session.open', 'session.peek', 'session.send', 'session.setProvider', 'providers.probe', 'providers.refreshModels', 'import.run', 'terminal.open', 'im.set', 'im.test', 'mcp.registry', 'sync.remote.test', 'sync.remote.push', 'sync.remote.pull']);
 
 const isLoopback = (a: string | undefined) => !!a && (a === '::1' || a.startsWith('127.') || a.startsWith('::ffff:127.'));
 
@@ -669,6 +669,12 @@ export class Hub {
       case 'session.close':
         await s.pool.close(req.sessionId);
         return null;
+      case 'session.peek': {
+        const id = req.params.sessionId;
+        // a claude.ai export has no folder or settings of its own until it goes on in Claude
+        if (!id || (await s.library.kindOf(id)) !== 'claude' || s.library.continuesInClaude(id)) return null;
+        return s.pool.peek(req.params, !!req.context);
+      }
       case 'session.resumeMode':
         // the chip of a conversation that is not running shows what the next send really runs in (pool.open uses the same)
         return { permissionMode: s.pool.resumeMode(req.sessionId) };

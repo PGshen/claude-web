@@ -14,7 +14,7 @@ import { cloudRefusedFromPeer } from '../cloud/handlers.js';
 const FORWARD = new Set<ClientRequest['kind']>([
   'session.open', 'session.info', 'session.send', 'session.interrupt', 'session.side', 'session.close',
   'session.setModel', 'session.setPermissionMode', 'session.resumeMode', 'session.setEffort', 'session.setUltracode', 'session.setSubagentModel',
-  'session.contextUsage', 'session.stopTask', 'session.fastMode', 'session.toggleMcp', 'session.canonical',
+  'session.contextUsage', 'session.peek', 'session.stopTask', 'session.fastMode', 'session.toggleMcp', 'session.canonical',
   'permission.respond',
   'transcript.load', 'transcript.subagents', 'transcript.subagent',
   'library.read', 'library.rename', 'library.fork',
